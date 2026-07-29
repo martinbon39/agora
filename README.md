@@ -77,7 +77,7 @@ git clone https://github.com/martinbon39/agora.git
 cd agora
 npm install
 
-npm run dev:server    # API + WebSockets on :4560
+npm run dev:server    # API + WebSockets on :4570
 npm run dev:web       # UI on :5173, proxying to the server
 ```
 
@@ -128,14 +128,14 @@ machine.
 ## Configuration
 
 Everything is optional — agora boots with no configuration at all and serves
-`http://localhost:4560`. Every variable also accepts a legacy `AGORA_` prefix.
+`http://localhost:4570`.
 Full annotated list in [`.env.example`](.env.example).
 
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `AGORA_ORIGIN` | `http://localhost:<port>` | Public URL. **Required in production** — passkeys bind to its hostname. |
 | `AGORA_HOST` | `127.0.0.1` | Bind address. |
-| `AGORA_PORT` | `4560` | Port. |
+| `AGORA_PORT` | `4570` | Port. |
 | `AGORA_DATA_DIR` | `~/.agora` | Database, session logs, uploads, generated secrets. |
 | `AGORA_PROJECTS_DIR` | `~/projects` | Where your code lives; sessions and the file explorer are confined here. |
 | `AGORA_TMUX_SOCKET` | `agora` | Dedicated `tmux -L` socket. Changing it on a live install orphans running sessions. |

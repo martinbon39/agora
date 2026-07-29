@@ -11,7 +11,7 @@ ExecStart=/usr/bin/node server/dist/index.js
 Restart=always
 RestartSec=3
 Environment=AGORA_HOST=127.0.0.1
-Environment=AGORA_PORT=4560
+Environment=AGORA_PORT=4570
 # Set to the public URL served by Caddy (required for passkeys):
 Environment=AGORA_ORIGIN=https://agora.example.com
 # Optional overrides (google oauth etc.) — plain KEY=VALUE lines:

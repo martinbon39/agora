@@ -16,7 +16,7 @@ app builds anywhere).
 ```sh
 sudo apt install tmux build-essential   # node-pty and better-sqlite3 compile
 npm install
-npm run dev:server                      # :4560
+npm run dev:server                      # :4570
 npm run dev:web                         # :5173, proxies to the server
 ```
 
@@ -46,7 +46,7 @@ real routes:
 | `gate-scope.mjs` | Guest scoping: no reaching another project, the loopback proxy, or outside the project via symlink. |
 | `gate-peek.mjs` | Canvas links as permission: no link, no reading another agent's transcript; permission never chains and never crosses projects. |
 | `gate-accounts.mjs` | Claude accounts: a second identity gets its own credentials while CLAUDE.md, agents, skills and transcripts stay shared; a project resolves to its own account; removing one never follows its links into the real config. |
-| `gate-m1.mjs` | Session HTTP + WebSocket lifecycle. Needs a **live server** on :4560. |
+| `gate-m1.mjs` | Session HTTP + WebSocket lifecycle. Needs a **live server** on :4570. |
 | `gate-mobile-ime.mjs` | Mobile IME double-input filter. Needs **Playwright** + `npm run dev:web`. |
 | `gate-paste.mjs` | Clipboard image paste in a real browser. Needs **Playwright** + `npm run dev:web`. |
 

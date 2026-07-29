@@ -2,7 +2,7 @@
 // from server/node_modules. Exercises the real HTTP + WS API end to end.
 import { WebSocket } from "ws";
 
-const BASE = "http://127.0.0.1:4560";
+const BASE = "http://127.0.0.1:4570";
 const results = [];
 const check = (name, ok, detail = "") => {
   results.push({ name, ok, detail });
@@ -20,7 +20,7 @@ const api = async (method, path, body) => {
 };
 
 function attach(id) {
-  const ws = new WebSocket(`ws://127.0.0.1:4560/ws/sessions/${id}/attach?cols=120&rows=30`);
+  const ws = new WebSocket(`ws://127.0.0.1:4570/ws/sessions/${id}/attach?cols=120&rows=30`);
   const state = { ws, buf: "", closed: false };
   ws.on("message", (data, isBinary) => {
     if (!isBinary) return;

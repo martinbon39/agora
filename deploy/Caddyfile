@@ -1,7 +1,7 @@
 # /etc/caddy/Caddyfile — replace agora.example.com with the real domain.
 # Caddy terminates TLS (automatic Let's Encrypt) and proxies HTTP + WebSocket.
 agora.example.com {
-	reverse_proxy 127.0.0.1:4560
+	reverse_proxy 127.0.0.1:4570
 
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
