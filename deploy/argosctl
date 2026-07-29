@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# argos control: start/stop/restart via pidfile (dev), enroll passkey tokens.
+# On a systemd deploy, prefer `systemctl restart argos` and keep only enroll.
+set -u
+APP_DIR="${ARGOS_APP_DIR:-${ORBIT_APP_DIR:-$HOME/apps/argos}}"
+PIDFILE="$HOME/argos-server.pid"
+LOG="$HOME/argos-server.log"
+
+# server-local config (ARGOS_ORIGIN, google oauth…) — plain KEY=VALUE lines.
+# Must be the same file argos.service names in EnvironmentFile, i.e. inside the
+# data dir (~/.orbit by default), or systemd and this script disagree.
+ENV_FILE="${ARGOS_ENV_FILE:-${ARGOS_DATA_DIR:-$HOME/.orbit}/env}"
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  . "$ENV_FILE"
+  set +a
+fi
+
+case "${1:-}" in
+  start)
+    [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null && { echo already-running; exit 0; }
+    cd "$APP_DIR"
+    setsid nohup node server/dist/index.js > "$LOG" 2>&1 < /dev/null &
+    echo $! > "$PIDFILE"
+    echo "started $(cat "$PIDFILE")"
+    ;;
+  stop)
+    [ -f "$PIDFILE" ] && kill "$(cat "$PIDFILE")" 2>/dev/null && echo stopped
+    rm -f "$PIDFILE"
+    ;;
+  restart)
+    "$0" stop; sleep 0.5; "$0" start
+    ;;
+  enroll)
+    cd "$APP_DIR" && node server/dist/cli.js enroll
+    ;;
+  logs)
+    tail -f "$LOG"
+    ;;
+  *) echo "usage: argosctl start|stop|restart|enroll|logs"; exit 1;;
+esac

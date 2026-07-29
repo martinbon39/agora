@@ -1,0 +1,39 @@
+{
+  "name": "argos",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Argos \u2014 self-hosted cockpit for Claude Code and CLI agent sessions",
+  "license": "MIT",
+  "author": "Martin Bonan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/martinbon39/argos.git"
+  },
+  "bugs": {
+    "url": "https://github.com/martinbon39/argos/issues"
+  },
+  "homepage": "https://github.com/martinbon39/argos#readme",
+  "keywords": [
+    "claude-code",
+    "agents",
+    "terminal",
+    "tmux",
+    "self-hosted",
+    "xterm",
+    "canvas"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev -w server",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w web && npm run build -w server",
+    "start": "npm run start -w server",
+    "test": "npm run build -w server && node deploy/gate-canvas.mjs && node deploy/gate-chat.mjs && node deploy/gate-scope.mjs && node deploy/gate-accounts.mjs && node deploy/gate-peek.mjs"
+  }
+}

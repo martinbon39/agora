@@ -1,0 +1,336 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@xterm/xterm/css/xterm.css";
+@import "@fontsource-variable/dm-sans/index.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/700.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* t3code-style tokens: neutral surfaces as black/white alpha overlays, one
+   blue-violet accent, alpha borders, near-black (not pure black) dark bg */
+:root {
+  color-scheme: light;
+  --radius: 0.625rem;
+  --background: #ffffff;
+  --foreground: oklch(0.269 0.007 55);
+  --card: #ffffff;
+  --card-foreground: oklch(0.269 0.007 55);
+  --popover: #ffffff;
+  --popover-foreground: oklch(0.269 0.007 55);
+  --primary: oklch(0.488 0.217 264);
+  --primary-foreground: #ffffff;
+  --secondary: rgb(0 0 0 / 4%);
+  --secondary-foreground: oklch(0.269 0.007 55);
+  --muted: rgb(0 0 0 / 4%);
+  --muted-foreground: color-mix(in srgb, oklch(0.553 0.012 58) 90%, black);
+  --accent: rgb(0 0 0 / 4%);
+  --accent-foreground: oklch(0.269 0.007 55);
+  --destructive: oklch(0.637 0.237 25.3);
+  --destructive-foreground: oklch(0.505 0.213 27.5);
+  --success: oklch(0.696 0.17 162.5);
+  --warning: oklch(0.769 0.188 70.1);
+  --border: rgb(0 0 0 / 8%);
+  --input: rgb(0 0 0 / 10%);
+  --ring: oklch(0.488 0.217 264);
+  --sidebar: #fafafa;
+  --term-bg: #ffffff;
+  --surface-grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+}
+
+.dark {
+  color-scheme: dark;
+  --background: color-mix(in srgb, oklch(0.145 0 0) 95%, white);
+  --foreground: oklch(0.922 0 0);
+  --card: color-mix(in srgb, var(--background) 98%, white);
+  --card-foreground: oklch(0.922 0 0);
+  --popover: color-mix(in srgb, var(--background) 97%, white);
+  --popover-foreground: oklch(0.922 0 0);
+  --primary: oklch(0.588 0.217 264);
+  --primary-foreground: #ffffff;
+  --secondary: rgb(255 255 255 / 4%);
+  --secondary-foreground: oklch(0.922 0 0);
+  --muted: rgb(255 255 255 / 4%);
+  --muted-foreground: color-mix(in srgb, oklch(0.553 0.012 58) 90%, white);
+  --accent: rgb(255 255 255 / 4%);
+  --accent-foreground: oklch(0.922 0 0);
+  --destructive: color-mix(in srgb, oklch(0.637 0.237 25.3) 90%, white);
+  --destructive-foreground: oklch(0.704 0.191 22.2);
+  --success: oklch(0.696 0.17 162.5);
+  --warning: oklch(0.769 0.188 70.1);
+  --border: rgb(255 255 255 / 6%);
+  --input: rgb(255 255 255 / 8%);
+  --ring: oklch(0.588 0.217 264);
+  --sidebar: color-mix(in srgb, oklch(0.145 0 0) 97%, white);
+  --term-bg: #111111;
+}
+
+@theme inline {
+  --font-sans: "DM Sans Variable", "DM Sans", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, Menlo, monospace;
+  --animate-skeleton: skeleton 2s -1s infinite linear;
+  --animate-status-pulse: status-pulse 2s infinite;
+  --animate-status-ping: status-ping 2s infinite;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  @keyframes skeleton {
+    to {
+      background-position: -200% 0;
+    }
+  }
+  @keyframes status-pulse {
+    0%,
+    40% {
+      opacity: 1;
+      animation-timing-function: steps(6);
+    }
+    50%,
+    90% {
+      opacity: 0.5;
+      animation-timing-function: steps(6);
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  @keyframes status-ping {
+    0% {
+      opacity: 0.9;
+      scale: 0.75;
+      animation-timing-function: steps(8);
+    }
+    40%,
+    100% {
+      opacity: 0;
+      scale: 2;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  :where([data-slot="menu-popup"], [data-slot="select-popup"], [data-slot="popover-popup"]):focus,
+  :where(
+    [data-slot="menu-popup"],
+    [data-slot="select-popup"],
+    [data-slot="popover-popup"]
+  ):focus-visible {
+    @apply outline-none ring-0;
+  }
+
+  .workspace-topbar {
+    display: flex;
+    height: 52px;
+    min-height: 52px;
+    flex-shrink: 0;
+    align-items: center;
+  }
+
+  .surface-subheader {
+    @apply flex h-10 min-h-10 shrink-0 items-center border-b border-border/60 bg-background;
+  }
+
+  .chat-composer-glass {
+    background: color-mix(in srgb, var(--card) 20%, transparent);
+    box-shadow:
+      0 18px 48px -20px rgb(0 0 0 / 28%),
+      0 4px 14px -7px rgb(0 0 0 / 22%);
+  }
+
+  .chat-composer-shared-blur {
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+  }
+
+  .dark .chat-composer-glass {
+    background: color-mix(in srgb, var(--card) 45%, transparent);
+    box-shadow:
+      0 18px 48px -20px rgb(0 0 0 / 60%),
+      0 4px 14px -7px rgb(0 0 0 / 40%);
+  }
+
+  @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .chat-composer-glass {
+      background: var(--card);
+    }
+  }
+}
+
+/* Suppress all transitions during theme changes */
+.no-transitions,
+.no-transitions *,
+.no-transitions *::before,
+.no-transitions *::after {
+  transition-duration: 0s !important;
+  animation-duration: 0s !important;
+}
+
+/* t3code signature: fractal-noise grain on floating surfaces + the app bg */
+@utility surface-grain {
+  background-image: var(--surface-grain);
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* dvh: the mobile URL bar must never push the app off-screen */
+#root {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+  font-family: var(--font-sans);
+  background-image: var(--surface-grain);
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* terminal chrome */
+.terminal-surface {
+  background: var(--term-bg);
+}
+
+.terminal-container .xterm {
+  height: 100%;
+}
+
+/* the terminal owns vertical touch gestures — we translate swipes into wheel
+   events (TerminalView), so the browser must not pan the page or the empty
+   xterm viewport instead. none also stops iOS rubber-banding over the terminal. */
+.terminal-container,
+.terminal-container .xterm-viewport,
+.terminal-container .xterm-screen {
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+.xterm .xterm-viewport {
+  background-color: transparent !important;
+}
+
+/* thin, quiet scrollbars everywhere */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent) transparent;
+}
+
+/* ---- canvas (desktop) --------------------------------------------------- */
+.canvas-flow {
+  background: var(--background);
+}
+
+/* Handles exist only as anchors for React Flow's edge machinery — links are
+   made with the dock's Link tool, never by aiming at a dot. Invisible and
+   inert, so the canvas carries no decoration nobody is meant to touch. */
+.react-flow__node-terminal .react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+/* while the link tool is armed, every terminal is a candidate */
+.canvas-linking .react-flow__node-terminal .canvas-node {
+  outline: 2px dashed rgb(52 211 153 / 40%);
+  outline-offset: 3px;
+}
+.canvas-linking .react-flow__node-terminal.canvas-link-source .canvas-node {
+  outline: 2px solid rgb(52 211 153 / 95%);
+  outline-offset: 3px;
+}
+
+/* node chrome shared by terminal/browser/game/chat/todo nodes */
+.canvas-node {
+  position: relative; /* anchors the ctrl-zoom shield overlay */
+  container-type: inline-size; /* cqw units: content scales with node width */
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: 0 10px 34px rgb(0 0 0 / 40%);
+}
+
+/* terminal outline mirrors the agent state (defined BEFORE -selected so an
+   explicit selection wins) */
+.canvas-node-state-working {
+  outline: 1.5px solid rgb(251 191 36 / 45%);
+  outline-offset: 1px;
+}
+.canvas-node-state-needs_approval {
+  outline: 2px solid rgb(251 113 133 / 70%);
+  outline-offset: 1px;
+  animation: canvas-approval-pulse 1.6s ease-in-out infinite;
+}
+@keyframes canvas-approval-pulse {
+  50% {
+    outline-color: rgb(251 113 133 / 25%);
+  }
+}
+
+.canvas-node-selected {
+  outline: 2px solid color-mix(in oklch, var(--ring) 70%, transparent);
+  outline-offset: 1px;
+}
+
+.node-drag-handle {
+  cursor: grab;
+  user-select: none;
+}
+.node-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* react-flow resets that fight the kit */
+.react-flow__node {
+  font-family: var(--font-sans);
+}
+.react-flow__minimap {
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+.react-flow__minimap svg {
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+}
+.react-flow__minimap-mask {
+  fill: rgb(0 0 0 / 40%);
+}

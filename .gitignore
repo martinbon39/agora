@@ -1,0 +1,19 @@
+node_modules/
+dist/
+*.log
+.env
+.env.*
+!.env.example
+data/
+*.db
+*.sqlite
+*.sqlite3
+.DS_Store
+.vscode/
+.idea/
+coverage/
+web/package-lock.json
+
+# scratch artifacts published via `orbit artifact` / ~/.orbit/artifacts
+artifacts/
+*.tsbuildinfo

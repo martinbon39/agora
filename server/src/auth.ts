@@ -1,0 +1,478 @@
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import {
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
+  type AuthenticatorTransportFuture,
+} from "@simplewebauthn/server";
+import Database from "better-sqlite3";
+import { config, env } from "./config.js";
+
+const SESSION_COOKIE = "orbit_session";
+const SESSION_TTL_MS = 30 * 24 * 3600 * 1000;
+const ENROLL_TTL_MS = 15 * 60 * 1000;
+
+// ---- identity ------------------------------------------------------------
+// argos historically had exactly one human (anonymous "the owner is in"
+// sessions). Multiplayer attaches an identity to each session: the owner
+// (passkey or ARGOS_ALLOWED_EMAIL via Google) or an invited guest (Google
+// account on the invites allowlist).
+
+export type AuthRole = "owner" | "guest";
+export interface AuthUser {
+  email: string;
+  name: string;
+  role: AuthRole;
+  color: string;
+  /** Project path this user is confined to; null = the whole cockpit.
+   *  Owners are always null; guests inherit it live from their invite. */
+  project: string | null;
+}
+
+/** May this user touch that project's resources? */
+export function scopeAllows(user: AuthUser | undefined, project: string): boolean {
+  if (!user) return false;
+  if (user.role === "owner" || user.project == null) return true;
+  return user.project === project;
+}
+
+declare module "fastify" {
+  interface FastifyRequest {
+    authUser?: AuthUser;
+  }
+}
+
+export const allowedEmail = () => (env("ALLOWED_EMAIL") ?? "").toLowerCase();
+
+export function ownerDisplayName(): string {
+  const explicit = env("OWNER_NAME");
+  if (explicit) return explicit;
+  const local = allowedEmail().split("@")[0];
+  return local || "owner";
+}
+
+/** Cursor/badge colors — bright enough to read on the dark canvas. */
+const USER_COLORS = [
+  "#fbbf24", "#38bdf8", "#a78bfa", "#34d399",
+  "#fb7185", "#f472b6", "#4ade80", "#fb923c",
+];
+export function colorForEmail(email: string): string {
+  let h = 0;
+  for (const c of email) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return USER_COLORS[h % USER_COLORS.length];
+}
+
+/** Origin argos is served from, e.g. https://argos.example.com */
+export function expectedOrigin(): string {
+  return env("ORIGIN") ?? `http://localhost:${config.port}`;
+}
+
+/** Every origin argos answers on: ARGOS_ORIGIN plus ARGOS_EXTRA_ORIGINS (comma-separated). */
+export function allowedOrigins(): string[] {
+  const extra = (env("EXTRA_ORIGINS") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return [expectedOrigin(), ...extra];
+}
+
+/** The origin the request actually came through, if it's one of ours —
+ *  so OAuth redirects land back on the domain the user is browsing. */
+export function requestOrigin(req: FastifyRequest): string {
+  const proto = String(req.headers["x-forwarded-proto"] ?? "http").split(",")[0].trim();
+  const candidate = `${proto}://${req.headers.host ?? ""}`;
+  return allowedOrigins().includes(candidate) ? candidate : expectedOrigin();
+}
+function rpID(): string {
+  return new URL(expectedOrigin()).hostname;
+}
+
+const sha256 = (v: string) => crypto.createHash("sha256").update(v).digest("hex");
+
+let db: Database.Database;
+// WebAuthn challenges are short-lived and single-process: keep them in memory.
+const challenges = new Map<string, { challenge: string; expires: number }>();
+
+function putChallenge(key: string, challenge: string) {
+  challenges.set(key, { challenge, expires: Date.now() + 5 * 60 * 1000 });
+}
+function takeChallenge(key: string): string | null {
+  const c = challenges.get(key);
+  challenges.delete(key);
+  return c && c.expires > Date.now() ? c.challenge : null;
+}
+
+export function initAuthDb(database: Database.Database) {
+  db = database;
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS credentials (
+      id TEXT PRIMARY KEY,
+      public_key BLOB NOT NULL,
+      counter INTEGER NOT NULL DEFAULT 0,
+      transports TEXT NOT NULL DEFAULT '[]',
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS auth_sessions (
+      token_hash TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      expires_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS enroll_tokens (
+      token_hash TEXT PRIMARY KEY,
+      expires_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS invites (
+      email TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      revoked_at INTEGER
+    );
+  `);
+  // pre-multiplayer sessions have no identity columns; NULL email = owner
+  for (const ddl of [
+    `ALTER TABLE auth_sessions ADD COLUMN email TEXT`,
+    `ALTER TABLE auth_sessions ADD COLUMN name TEXT`,
+    `ALTER TABLE auth_sessions ADD COLUMN role TEXT`,
+    `ALTER TABLE invites ADD COLUMN project TEXT`,
+  ]) {
+    try {
+      db.exec(ddl);
+    } catch {
+      // column already exists
+    }
+  }
+}
+
+/** Guest allowlist. Revoking keeps the row (audit + easy re-invite) but kills
+ *  every session of that email; live sockets are closed by the route. */
+export const invites = {
+  list(): { email: string; created_at: number; revoked_at: number | null; project: string | null }[] {
+    return db
+      .prepare(`SELECT email, created_at, revoked_at, project FROM invites ORDER BY created_at DESC`)
+      .all() as {
+      email: string;
+      created_at: number;
+      revoked_at: number | null;
+      project: string | null;
+    }[];
+  },
+  get(email: string): { revoked_at: number | null; project: string | null } | undefined {
+    return db.prepare(`SELECT revoked_at, project FROM invites WHERE email = ?`).get(email.toLowerCase()) as
+      | { revoked_at: number | null; project: string | null }
+      | undefined;
+  },
+  isActive(email: string): boolean {
+    const row = this.get(email);
+    return !!row && row.revoked_at == null;
+  },
+  add(email: string, project: string | null = null) {
+    db.prepare(
+      `INSERT INTO invites (email, created_at, revoked_at, project) VALUES (?, ?, NULL, ?)
+       ON CONFLICT(email) DO UPDATE SET revoked_at = NULL, project = excluded.project`
+    ).run(email.toLowerCase(), Date.now(), project);
+  },
+  revoke(email: string) {
+    const e = email.toLowerCase();
+    db.prepare(`UPDATE invites SET revoked_at = ? WHERE email = ?`).run(Date.now(), e);
+    db.prepare(`DELETE FROM auth_sessions WHERE email = ?`).run(e);
+  },
+}
+
+/** Called by the CLI (on the server, over the filesystem — never via HTTP). */
+export function createEnrollToken(database: Database.Database): string {
+  const token = crypto.randomBytes(24).toString("base64url");
+  database
+    .prepare(`INSERT INTO enroll_tokens (token_hash, expires_at) VALUES (?, ?)`)
+    .run(sha256(token), Date.now() + ENROLL_TTL_MS);
+  return token;
+}
+
+function consumeEnrollToken(token: string): boolean {
+  const row = db
+    .prepare(`SELECT expires_at FROM enroll_tokens WHERE token_hash = ?`)
+    .get(sha256(token)) as { expires_at: number } | undefined;
+  if (!row) return false;
+  db.prepare(`DELETE FROM enroll_tokens WHERE token_hash = ?`).run(sha256(token));
+  return row.expires_at > Date.now();
+}
+
+function credentialCount(): number {
+  return (db.prepare(`SELECT COUNT(*) AS n FROM credentials`).get() as { n: number }).n;
+}
+
+/** Session cookie -> identity. NULL email (pre-multiplayer rows, passkey
+ *  logins) means the owner. Also does the sliding renewal. */
+export function getAuthUser(req: FastifyRequest): AuthUser | null {
+  const token = req.cookies?.[SESSION_COOKIE];
+  if (!token) return null;
+  const row = db
+    .prepare(`SELECT expires_at, email, name, role FROM auth_sessions WHERE token_hash = ?`)
+    .get(sha256(token)) as
+    | { expires_at: number; email: string | null; name: string | null; role: string | null }
+    | undefined;
+  if (!row || row.expires_at <= Date.now()) return null;
+  // sliding expiration: active users never get logged out
+  if (row.expires_at - Date.now() < SESSION_TTL_MS - 24 * 3600 * 1000) {
+    db.prepare(`UPDATE auth_sessions SET expires_at = ? WHERE token_hash = ?`).run(
+      Date.now() + SESSION_TTL_MS,
+      sha256(token)
+    );
+  }
+  const role: AuthRole = row.role === "guest" ? "guest" : "owner";
+  const email = row.email ?? allowedEmail();
+  const name = row.name ?? (role === "owner" ? ownerDisplayName() : email.split("@")[0] || "guest");
+  let project: string | null = null;
+  if (role === "guest") {
+    // scope is read LIVE from the invite: re-scoping or revoking applies to
+    // existing sessions instantly, not at next login
+    const invite = invites.get(email);
+    if (!invite || invite.revoked_at != null) return null;
+    project = invite.project;
+  }
+  return { email, name, role, color: colorForEmail(email || name), project };
+}
+
+function isAuthed(req: FastifyRequest): boolean {
+  return getAuthUser(req) !== null;
+}
+
+/** Shared with googleAuth.ts. */
+export function issueSessionFor(
+  reply: FastifyReply,
+  identity?: { email: string; name: string; role: AuthRole }
+) {
+  issueSession(reply, identity);
+}
+
+function issueSession(
+  reply: FastifyReply,
+  identity?: { email: string; name: string; role: AuthRole }
+) {
+  const token = crypto.randomBytes(32).toString("base64url");
+  db.prepare(
+    `INSERT INTO auth_sessions (token_hash, created_at, expires_at, email, name, role) VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(
+    sha256(token),
+    Date.now(),
+    Date.now() + SESSION_TTL_MS,
+    identity?.email ?? null,
+    identity?.name ?? null,
+    identity?.role ?? null
+  );
+  reply.setCookie(SESSION_COOKIE, token, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: expectedOrigin().startsWith("https"),
+    maxAge: SESSION_TTL_MS / 1000,
+  });
+}
+
+/**
+ * Global gate. Public: auth endpoints and the SPA's static assets (the login
+ * screen itself). Everything else — /api and /ws — needs a session cookie.
+ * Claude Code hooks POST with a secret header instead of a cookie; the secret
+ * persists on disk so hook settings survive argos restarts.
+ */
+let hookSecretCache: string | null = null;
+export function hookSecret(): string {
+  if (hookSecretCache) return hookSecretCache;
+  const file = path.join(config.dataDir, "hook-secret");
+  try {
+    hookSecretCache = fs.readFileSync(file, "utf8").trim();
+  } catch {
+    hookSecretCache = crypto.randomBytes(24).toString("base64url");
+    fs.mkdirSync(config.dataDir, { recursive: true });
+    fs.writeFileSync(file, hookSecretCache, { mode: 0o600 });
+  }
+  return hookSecretCache;
+}
+
+/** The path every prefix test below must run on.
+ *
+ *  NOT `req.raw.url`: that is the raw request target, while the router
+ *  percent-decodes before matching. `/%61pi/sessions` therefore reached the
+ *  /api route with `startsWith("/api/")` false — the gate opened for every
+ *  protected prefix at once. Prefer the pattern the router actually matched,
+ *  which no encoding can disguise, and fall back to a decoded path when
+ *  nothing matched (undecodable input counts as protected). */
+function gatePath(req: FastifyRequest): string {
+  const matched = req.routeOptions?.url;
+  if (matched) return matched;
+  const raw = (req.raw.url ?? "/").split("?")[0];
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+export function requireAuth(app: FastifyInstance) {
+  app.addHook("onRequest", async (req, reply) => {
+    const url = gatePath(req);
+    const isProtected =
+      url.startsWith("/api/") ||
+      url.startsWith("/ws/") ||
+      url.startsWith("/artifacts") ||
+      url.startsWith("/uploads") ||
+      url.startsWith("/proxy/");
+    if (!isProtected) return; // SPA assets: public, they contain no secrets
+    if (url.startsWith("/api/auth/")) return;
+    if (url === "/api/version") return; // build hash — harmless, needed pre-reload
+    if (url.startsWith("/ws/bridge")) return; // token-checked in its own handler
+    // x-orbit-hook kept alongside: running sessions carry pre-rename hook
+    // settings files whose curl commands still send the old header
+    if (
+      url.startsWith("/api/hooks/") &&
+      (req.headers["x-argos-hook"] === hookSecret() ||
+        req.headers["x-orbit-hook"] === hookSecret())
+    )
+      return;
+    // CSRF hardening: content in sandboxed/proxied iframes (opaque origin) and
+    // third-party pages report Sec-Fetch-Site: cross-site — they must never
+    // reach the API even if the browser attached the session cookie
+    const fetchSite = req.headers["sec-fetch-site"];
+    if (fetchSite === "cross-site") {
+      reply.code(403).send({ error: "cross-site request refused" });
+      return;
+    }
+    const user = getAuthUser(req);
+    if (!user) {
+      reply.code(401).send({ error: "unauthorized" });
+      return;
+    }
+    req.authUser = user;
+    // guests collaborate (canvas, terminals, chat) but never administer:
+    // invites (self-escalation), push subs and GitHub tokens are Martin's
+    if (user.role === "guest" && GUEST_BLOCKED.some((p) => url.startsWith(p))) {
+      reply.code(403).send({ error: "owner only" });
+    }
+  });
+}
+
+// /proxy/<port>/ reaches anything listening on the VPS loopback and carries no
+// project of its own, so it cannot be scoped — a guest allowed through it would
+// see every other project's dev server (and any local-only admin UI).
+const GUEST_BLOCKED = ["/api/invites", "/api/push", "/api/github", "/proxy/"];
+
+export async function authRoutes(app: FastifyInstance) {
+  app.get("/api/auth/me", async (req) => {
+    const { googleConfigured } = await import("./googleAuth.js");
+    const user = getAuthUser(req);
+    return {
+      authed: user !== null,
+      enrolled: credentialCount() > 0,
+      google: googleConfigured(),
+      user,
+    };
+  });
+
+  app.post<{ Body: { token?: string } }>("/api/auth/register/options", async (req, reply) => {
+    const token = req.body?.token ?? "";
+    if (!consumeEnrollToken(token)) {
+      return reply.code(403).send({ error: "invalid or expired enrollment token" });
+    }
+    const options = await generateRegistrationOptions({
+      rpName: "argos",
+      rpID: rpID(),
+      userName: "owner",
+      userDisplayName: "argos owner",
+      authenticatorSelection: {
+        residentKey: "required",
+        userVerification: "preferred",
+      },
+    });
+    // key the challenge on itself: registration is a two-step dance
+    putChallenge(`reg`, options.challenge);
+    return options;
+  });
+
+  app.post<{ Body: { response: any } }>("/api/auth/register/verify", async (req, reply) => {
+    const challenge = takeChallenge("reg");
+    if (!challenge) return reply.code(400).send({ error: "no pending registration" });
+    try {
+      const verification = await verifyRegistrationResponse({
+        response: req.body.response,
+        expectedChallenge: challenge,
+        expectedOrigin: expectedOrigin(),
+        expectedRPID: rpID(),
+      });
+      if (!verification.verified || !verification.registrationInfo) {
+        return reply.code(400).send({ error: "verification failed" });
+      }
+      const { credential } = verification.registrationInfo;
+      db.prepare(
+        `INSERT INTO credentials (id, public_key, counter, transports, created_at) VALUES (?, ?, ?, ?, ?)`
+      ).run(
+        credential.id,
+        Buffer.from(credential.publicKey),
+        credential.counter,
+        JSON.stringify(credential.transports ?? []),
+        Date.now()
+      );
+      issueSession(reply);
+      return { ok: true };
+    } catch (err) {
+      return reply.code(400).send({ error: String(err) });
+    }
+  });
+
+  app.post("/api/auth/login/options", async (_req, reply) => {
+    if (credentialCount() === 0) {
+      return reply.code(403).send({ error: "no passkey enrolled" });
+    }
+    const options = await generateAuthenticationOptions({
+      rpID: rpID(),
+      userVerification: "preferred",
+    });
+    putChallenge("login", options.challenge);
+    return options;
+  });
+
+  app.post<{ Body: { response: any } }>("/api/auth/login/verify", async (req, reply) => {
+    const challenge = takeChallenge("login");
+    if (!challenge) return reply.code(400).send({ error: "no pending login" });
+    const credId = req.body?.response?.id;
+    const row = db
+      .prepare(`SELECT * FROM credentials WHERE id = ?`)
+      .get(credId) as
+      | { id: string; public_key: Buffer; counter: number; transports: string }
+      | undefined;
+    if (!row) return reply.code(403).send({ error: "unknown credential" });
+    try {
+      const verification = await verifyAuthenticationResponse({
+        response: req.body.response,
+        expectedChallenge: challenge,
+        expectedOrigin: expectedOrigin(),
+        expectedRPID: rpID(),
+        credential: {
+          id: row.id,
+          publicKey: new Uint8Array(row.public_key),
+          counter: row.counter,
+          transports: JSON.parse(row.transports) as AuthenticatorTransportFuture[],
+        },
+      });
+      if (!verification.verified) return reply.code(403).send({ error: "verification failed" });
+      db.prepare(`UPDATE credentials SET counter = ? WHERE id = ?`).run(
+        verification.authenticationInfo.newCounter,
+        row.id
+      );
+      issueSession(reply);
+      return { ok: true };
+    } catch (err) {
+      return reply.code(403).send({ error: String(err) });
+    }
+  });
+
+  app.post("/api/auth/logout", async (req, reply) => {
+    const token = req.cookies?.[SESSION_COOKIE];
+    if (token) {
+      db.prepare(`DELETE FROM auth_sessions WHERE token_hash = ?`).run(sha256(token));
+    }
+    reply.clearCookie(SESSION_COOKIE, { path: "/" });
+    return { ok: true };
+  });
+}

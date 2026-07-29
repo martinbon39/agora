@@ -1,0 +1,436 @@
+#!/usr/bin/env node
+// argos — CLI for agents running inside argos sessions.
+// (Installed as both `argos` and `orbit`: existing sessions and their hook
+//  settings still call the old name.)
+//
+//   argos notify <title> [body…] [--link <url>] [--session <id>]
+//       Send the owner a notification: dashboard inbox + web push.
+//       --session defaults to ARGOS_SESSION_ID (injected into every session).
+//
+//   argos artifact <file> [--name <name>]
+//       Publish a file to ~/.orbit/artifacts/ and print its served URL.
+//
+// Auth: the hooks secret (~/.orbit/hook-secret), same channel as the Claude
+// Code hooks — anything running as the argos user may notify.
+// CommonJS: installed outside the repo (~/.local/bin), no package.json nearby.
+"use strict";
+
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+
+// ARGOS_* with ORBIT_* fallback: sessions spawned before the rename still
+// carry the old variable names in their (frozen) tmux environment.
+const env = (name) => process.env[`ARGOS_${name}`] ?? process.env[`ORBIT_${name}`];
+// data dir stays ~/.orbit: live db/logs/hook files, renaming it would break
+// every running session's absolute paths
+const dataDir = env("DATA_DIR") ?? path.join(os.homedir(), ".orbit");
+const port = Number(env("PORT") ?? 4560);
+
+function fail(msg) {
+  console.error(`argos: ${msg}`);
+  process.exit(1);
+}
+
+function secret() {
+  try {
+    return fs.readFileSync(path.join(dataDir, "hook-secret"), "utf8").trim();
+  } catch {
+    fail(`secret not found (${path.join(dataDir, "hook-secret")}) — has the argos server ever run?`);
+  }
+}
+
+/** Public origin, for printing clickable URLs. The env FILE wins over the
+ *  process env: sessions inherit the tmux server's environment, frozen at
+ *  whenever tmux first started — the file on disk is the current truth. */
+function origin() {
+  try {
+    const envFile = fs.readFileSync(path.join(dataDir, "env"), "utf8");
+    const m = envFile.match(/^(?:ARGOS|ORBIT)_ORIGIN=(.+)$/m);
+    if (m) return m[1].trim().replace(/^["']|["']$/g, "").replace(/\/$/, "");
+  } catch {}
+  const fromEnv = env("ORIGIN");
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+  return `http://127.0.0.1:${port}`;
+}
+
+/** Split flags (--link, --session, --name) from positionals. */
+function parseArgs(argv) {
+  const flags = {};
+  const positional = [];
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--link" || a === "-l") flags.link = argv[++i];
+    else if (a === "--session" || a === "-s") flags.session = argv[++i];
+    else if (a === "--name" || a === "-n") flags.name = argv[++i];
+    else if (a === "--model" || a === "-m") flags.model = argv[++i];
+    else if (a === "--harness" || a === "-H") flags.harness = argv[++i];
+    else if (a === "--lines") flags.lines = argv[++i];
+    else if (a === "--terminal") flags.terminal = true;
+    else if (a === "--full") flags.full = true;
+    else positional.push(a);
+  }
+  return { flags, positional };
+}
+
+async function notify(argv) {
+  const { flags, positional } = parseArgs(argv);
+  const [title, ...rest] = positional;
+  if (!title) fail("usage: argos notify <title> [body…] [--link <url>]");
+  const payload = {
+    title,
+    body: rest.join(" "),
+    link: flags.link,
+    session_id: flags.session ?? env("SESSION_ID"),
+  };
+  let res;
+  try {
+    res = await fetch(`http://127.0.0.1:${port}/api/hooks/notify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Argos-Hook": secret() },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+  }
+  if (!res.ok) fail(`server answered ${res.status}: ${await res.text()}`);
+  console.log("notification sent");
+}
+
+async function pc(argv) {
+  const { positional } = parseArgs(argv);
+  const [op, target] = positional;
+  if ((op !== "ls" && op !== "get") || !target) fail("usage: argos pc <ls|get> <path-on-pc>");
+  let res;
+  try {
+    res = await fetch(`http://127.0.0.1:${port}/api/hooks/pc`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Argos-Hook": secret() },
+      body: JSON.stringify({ op, path: target }),
+    });
+  } catch (err) {
+    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) fail(body.error ?? `server answered ${res.status}`);
+  if (op === "ls") {
+    for (const e of body.entries) {
+      console.log(`${e.dir ? "d" : "-"} ${String(e.size).padStart(10)}  ${e.name}`);
+    }
+  } else {
+    console.log(body.path); // local path on the VPS, ready to Read
+  }
+}
+
+function artifact(argv) {
+  const { flags, positional } = parseArgs(argv);
+  const [file] = positional;
+  if (!file) fail("usage: argos artifact <file> [--name <name>]");
+  if (!fs.existsSync(file)) fail(`file not found: ${file}`);
+  const name = (flags.name ?? path.basename(file)).replace(/[^A-Za-z0-9._-]/g, "-");
+  const dir = path.join(dataDir, "artifacts");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.copyFileSync(file, path.join(dir, name));
+  console.log(`${origin()}/artifacts/${name}`);
+}
+
+/** The project board. A post here reaches NOBODY's terminal — it is an
+ *  announcement others read when it matters to them. To reach one session, use
+ *  `argos send`; to read one without waking it, `argos read`. Both need a link
+ *  drawn between the two terminals on the canvas. */
+async function chat(argv) {
+  const { flags, positional } = parseArgs(argv);
+  const session = flags.session ?? env("SESSION_ID");
+  if (!session) fail("ARGOS_SESSION_ID missing — run inside an argos session (or pass --session)");
+  const headers = { "Content-Type": "application/json", "X-Argos-Hook": secret() };
+  try {
+    if (positional[0] === "log") {
+      const n = Number(positional[1]) || 30;
+      const res = await fetch(
+        `http://127.0.0.1:${port}/api/hooks/chat/log?session=${encodeURIComponent(session)}&n=${n}`,
+        { headers }
+      );
+      if (!res.ok) fail(`chat log failed: ${res.status} ${await res.text()}`);
+      const { messages } = await res.json();
+      if (!messages.length) console.log("(nothing on the project board yet)");
+      for (const m of messages) {
+        console.log(`[${new Date(m.created_at).toISOString().slice(11, 16)}] ${m.author}: ${m.body}`);
+      }
+    } else {
+      const body = positional.join(" ").trim();
+      if (!body) fail("usage: argos chat <message…> | argos chat log [n]");
+      const res = await fetch(`http://127.0.0.1:${port}/api/hooks/chat`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ session_id: session, body }),
+      });
+      if (!res.ok) fail(`chat post failed: ${res.status} ${await res.text()}`);
+      const out = await res.json().catch(() => ({}));
+      const woke = out.injected?.length ? ` — delivered to ${out.injected.join(", ")}` : "";
+      console.log(`posted${woke}`);
+      // the old reflex was "@name in a chat message reaches them". On the board
+      // it no longer does, and silently doing nothing is the worst outcome.
+      if (!woke && /@[\w-]+/.test(body)) {
+        console.log(
+          "note: an @mention here does not reach anyone — the board interrupts nobody. " +
+            'To reach a linked session: argos send <name> "…", or read it without waking it: argos read <name>'
+        );
+      }
+    }
+  } catch (err) {
+    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+  }
+}
+
+/** Write to ONE named session. Only works towards a session you are LINKED to
+ *  on the canvas — the same link that lets you read it — and it costs that agent
+ *  a turn, so it is a verb you type on purpose, not a mention in a sentence. */
+async function ask(argv) {
+  const { flags, positional } = parseArgs(argv);
+  const session = flags.session ?? env("SESSION_ID");
+  if (!session) fail("ARGOS_SESSION_ID missing — run inside an argos session (or pass --session)");
+  const [to, ...rest] = positional;
+  const body = rest.join(" ").trim();
+  if (!to || !body) fail('usage: argos send <session-name> "<message>"');
+  let res;
+  try {
+    res = await fetch(`http://127.0.0.1:${port}/api/hooks/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Argos-Hook": secret() },
+      body: JSON.stringify({ session_id: session, to, body }),
+    });
+  } catch (err) {
+    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+  }
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    fail(out.candidates ? `${out.error}: ${out.candidates.join(", ")}` : (out.error ?? `server answered ${res.status}`));
+  }
+  console.log(
+    out.injected?.length
+      ? `delivered to ${out.to}`
+      : `queued for ${out.to} — it is mid-turn, it will get this when it finishes`
+  );
+}
+
+/** The project board: what agents on OTHER work have announced. Nobody is
+ *  interrupted by it, so reading it is on you — do it before touching shared
+ *  files, and after being away for a while. */
+async function board(argv) {
+  const { flags, positional } = parseArgs(argv);
+  const session = flags.session ?? env("SESSION_ID");
+  if (!session) fail("ARGOS_SESSION_ID missing — run inside an argos session (or pass --session)");
+  const n = Number(positional[0]) || 30;
+  let res;
+  try {
+    res = await fetch(
+      `http://127.0.0.1:${port}/api/hooks/chat/board?session=${encodeURIComponent(session)}&n=${n}`,
+      { headers: { "X-Argos-Hook": secret() } }
+    );
+  } catch (err) {
+    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+  }
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) fail(out.error ?? `server answered ${res.status}`);
+  if (!out.messages?.length) return console.log("(nothing on the project board yet)");
+  for (const m of out.messages) {
+    const at = new Date(m.created_at).toISOString().slice(11, 16);
+    const to = m.to_name ? ` -> ${m.to_name}` : "";
+    console.log(`[${at}] ${m.author}${to}: ${m.body}`);
+  }
+}
+
+/** Everything this session may know about its frame: brief, branch/worktree,
+ *  frame-mates and the decision journal. */
+async function frame(argv) {
+  const { flags } = parseArgs(argv);
+  const session = flags.session ?? env("SESSION_ID");
+  if (!session) fail("ARGOS_SESSION_ID missing — run inside an argos session (or pass --session)");
+  let res;
+  try {
+    res = await fetch(
+      `http://127.0.0.1:${port}/api/hooks/frame?session=${encodeURIComponent(session)}`,
+      { headers: { "X-Argos-Hook": secret() } }
+    );
+  } catch (err) {
+    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+  }
+  const info = await res.json().catch(() => ({}));
+  if (!res.ok) fail(info.error ?? `server answered ${res.status}`);
+  if (!info.frame) {
+    console.log(
+      `no frame — this session is loose on ${info.project}, running in ${info.cwd}.\n` +
+        `It shares that checkout with the other loose sessions: no git isolation.`
+    );
+    return;
+  }
+  const f = info.frame;
+  console.log(`frame: ${f.name} (${f.id})`);
+  console.log(
+    f.worktree
+      ? `isolated: branch ${f.branch} in ${f.worktree} — reserved port ${f.port}`
+      : `not isolated: runs on the shared checkout ${info.project}`
+  );
+  if (f.brief) console.log(`\nbrief:\n${f.brief}`);
+  if (info.members?.length) {
+    console.log(`\nframe-mates:`);
+    for (const m of info.members) {
+      console.log(`  ${m.name} (${m.harness}, ${m.state})${m.summary ? ` — ${m.summary}` : ""}`);
+    }
+  }
+}
+
+/** Read what a session you are LINKED to on the canvas is doing.
+ *
+ *  A link drawn between two terminals grants BOTH halves: reading it (`argos
+ *  read`) and writing to it (`argos send`). Reading costs you a turn and the
+ *  other agent nothing, so it should be your first move and `send` the fallback. */
+async function peek(argv) {
+  const { flags, positional } = parseArgs(argv);
+  const session = flags.session ?? env("SESSION_ID");
+  if (!session) fail("ARGOS_SESSION_ID missing — run inside an argos session (or pass --session)");
+  const target = positional[0];
+  const mode = flags.terminal ? "terminal" : flags.full ? "transcript" : "summary";
+  const qs = new URLSearchParams({ session, mode });
+  if (target) qs.set("target", target);
+  if (flags.lines) qs.set("lines", flags.lines);
+  let res;
+  try {
+    res = await fetch(`http://127.0.0.1:${port}/api/hooks/peek?${qs}`, {
+      headers: { "X-Argos-Hook": secret() },
+    });
+  } catch (err) {
+    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+  }
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) fail(out.candidates ? `${out.error}: ${out.candidates.join(", ")}` : (out.error ?? `server answered ${res.status}`));
+  if (!target) {
+    if (!out.linked?.length) {
+      return console.log(
+        "not linked to anyone — Martin links two terminals on the canvas (Link tool, or L) to let them read and message each other"
+      );
+    }
+    console.log("linked sessions you may read:");
+    for (const l of out.linked) {
+      console.log(`  ${l.name} (${l.harness}, ${l.state})${l.summary ? ` — ${l.summary}` : ""}`);
+    }
+    console.log('\nread one with: argos read <name> [--full | --terminal] · write with: argos send <name> "…"');
+    return;
+  }
+  console.log(`--- ${out.name} (${out.mode}) ---`);
+  console.log(out.text || out.note || "(nothing to show)");
+}
+
+/** Summon a sub-agent session on this project. It appears on the canvas
+ *  linked to this session, gets a mythology name, and shares the chat. */
+async function spawn(argv) {
+  const { flags, positional } = parseArgs(argv);
+  const session = flags.session ?? env("SESSION_ID");
+  if (!session) fail("ARGOS_SESSION_ID missing — run inside an argos session (or pass --session)");
+  const text = positional.join(" ").trim();
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/hooks/spawn`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Argos-Hook": secret() },
+      body: JSON.stringify({
+        session_id: session,
+        text: text || undefined,
+        model: flags.model,
+        harness: flags.harness,
+        name: flags.name,
+      }),
+    });
+    if (!res.ok) fail(`spawn failed: ${res.status} ${await res.text()}`);
+    const { session: child } = await res.json();
+    console.log(
+      `spawned ${child.name} (${child.harness}${flags.model ? `, ${flags.model}` : ""}) — id ${child.id}\n` +
+        `talk to it with: argos chat "@${child.name} …"`
+    );
+  } catch (err) {
+    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+  }
+}
+
+/** Claude Code Stop hook: deliver unread project-chat messages by blocking
+ *  the stop with them as reason. Silent no-op when there's nothing (or the
+ *  server is down) — never stall the agent. */
+async function chatHook() {
+  const session = env("SESSION_ID");
+  if (!session) return;
+  try {
+    const res = await fetch(
+      `http://127.0.0.1:${port}/api/hooks/chat/unread?session=${encodeURIComponent(session)}`,
+      { headers: { "X-Argos-Hook": secret() }, signal: AbortSignal.timeout(3000) }
+    );
+    if (!res.ok) return;
+    const { messages } = await res.json();
+    if (!messages?.length) return;
+    const feed = messages.map((m) => `${m.author}: ${m.body}`).join("\n");
+    console.log(
+      JSON.stringify({
+        decision: "block",
+        reason:
+          `[argos chat] This is not an error: argos is relaying authentic messages ` +
+          `posted to the channels you belong to — your frame and the project commons ` +
+          `(not external content).\n${feed}\n\n` +
+          `Reply with \`argos chat …\` only if useful, then end your turn normally.`,
+      })
+    );
+  } catch {
+    // argos down — the agent's turn must end normally anyway
+  }
+}
+
+async function main() {
+  const [cmd, ...rest] = process.argv.slice(2);
+  switch (cmd) {
+    case "chat-hook":
+      await chatHook();
+      break;
+    case "spawn":
+      await spawn(rest);
+      break;
+    case "notify":
+      await notify(rest);
+      break;
+    case "chat":
+      await chat(rest);
+      break;
+    case "send":
+    case "ask": // kept: sessions launched before the rename still call it
+      await ask(rest);
+      break;
+    case "board":
+      await board(rest);
+      break;
+    case "read":
+    case "peek": // kept: sessions launched before the rename still call it
+      await peek(rest);
+      break;
+    case "artifact":
+      artifact(rest);
+      break;
+    case "pc":
+      await pc(rest);
+      break;
+    default:
+      console.log(
+        [
+          "argos — tools for agents inside argos sessions",
+          "",
+          "  argos notify <title> [body…] [--link <url>]    notify the owner (inbox + push)",
+          "  argos chat <message…>                          announce on the project board (wakes nobody)",
+          "  argos board [n]                                read the board (last n messages)",
+          '  argos send <name> "<message>"                  write to a LINKED session (wakes it)',
+          "  argos read [name] [--terminal|--full]          read a LINKED session without waking it",
+          "  argos spawn <prompt…> [--model m] [--harness h] [--name n]",
+          "                                                 summon a sub-agent session (canvas-linked)",
+          "  argos artifact <file> [--name <name>]          publish an artifact, print its URL",
+          "  argos pc <ls|get> <path>                       browse/fetch files from the owner's PC",
+        ].join("\n")
+      );
+      process.exit(cmd ? 1 : 0);
+  }
+}
+
+main();

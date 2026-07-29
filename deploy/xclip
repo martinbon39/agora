@@ -1,0 +1,26 @@
+#!/bin/sh
+# Fake xclip for headless Claude Code image paste (installed by deploy to
+# ~/.local/bin/xclip). Claude Code probes the clipboard with
+#   xclip -selection clipboard -t TARGETS -o
+# then fetches with
+#   xclip -selection clipboard -t <mime> -o
+# The orbit server writes the last uploaded image to ~/.orbit/clipboard/
+# (files: image + mime); this shim serves them.
+CLIP_DIR="${ORBIT_DATA_DIR:-$HOME/.orbit}/clipboard"
+
+target=""
+prev=""
+for a in "$@"; do
+  [ "$prev" = "-t" ] && target="$a"
+  prev="$a"
+done
+
+[ -f "$CLIP_DIR/image" ] || exit 1
+mime=$(cat "$CLIP_DIR/mime" 2>/dev/null || echo image/png)
+
+case "$target" in
+  TARGETS) echo "$mime" ;;
+  "$mime" | image/*) cat "$CLIP_DIR/image" ;;
+  "" | text/*) exit 1 ;;
+  *) exit 1 ;;
+esac

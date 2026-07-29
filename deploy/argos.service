@@ -1,0 +1,27 @@
+# /etc/systemd/system/argos.service
+[Unit]
+Description=argos — self-hosted agent session cockpit
+After=network.target
+
+[Service]
+Type=simple
+User=argos
+WorkingDirectory=/home/argos/apps/argos
+ExecStart=/usr/bin/node server/dist/index.js
+Restart=always
+RestartSec=3
+Environment=ARGOS_HOST=127.0.0.1
+Environment=ARGOS_PORT=4560
+# Set to the public URL served by Caddy (required for passkeys):
+Environment=ARGOS_ORIGIN=https://argos.example.com
+# Optional overrides (google oauth etc.) — plain KEY=VALUE lines:
+EnvironmentFile=-/home/argos/.orbit/env
+
+# NB: no PrivateTmp — the tmux server socket lives in /tmp and must be shared.
+# KillMode=process: restarting argos must never kill the tmux sessions it
+# spawned (they carry the user's long-running agents).
+NoNewPrivileges=true
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
