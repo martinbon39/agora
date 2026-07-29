@@ -6,15 +6,20 @@ import {
   invites,
   issueSessionFor,
   ownerDisplayName,
+  openSignup,
   requestOrigin,
 } from "./auth.js";
 import { env } from "./config.js";
 
 /**
- * "Sign in with Google": AGORA_ALLOWED_EMAIL is the owner, any email on the
- * invites allowlist becomes a guest session, everyone else bounces to
- * /#denied. Config via env: AGORA_GOOGLE_CLIENT_ID, AGORA_GOOGLE_CLIENT_SECRET,
- * AGORA_ALLOWED_EMAIL. The id_token is validated
+ * "Sign in with Google". Three ways in, checked in this order:
+ *   - AGORA_ALLOWED_EMAIL      the self-hoster
+ *   - an active invite         a guest, inside one project of somebody else's
+ *   - AGORA_OPEN_SIGNUP        anyone verified, as a tenant of their own
+ * Everyone else bounces to /#denied.
+ *
+ * Config: AGORA_GOOGLE_CLIENT_ID, AGORA_GOOGLE_CLIENT_SECRET, and either
+ * AGORA_ALLOWED_EMAIL or AGORA_OPEN_SIGNUP. The id_token is validated
  * server-side through Google's tokeninfo endpoint (signature + expiry checked
  * by Google).
  */
@@ -22,7 +27,10 @@ import { env } from "./config.js";
 const clientId = () => env("GOOGLE_CLIENT_ID") ?? "";
 const clientSecret = () => env("GOOGLE_CLIENT_SECRET") ?? "";
 
-export const googleConfigured = () => !!(clientId() && clientSecret() && allowedEmail());
+// An install running open signup has no single owner address, so requiring one
+// here would hide the only way in.
+export const googleConfigured = () =>
+  !!(clientId() && clientSecret() && (allowedEmail() || openSignup()));
 
 // Per-request: the callback must return to the domain the user browsed in on
 // (both are registered in the Google OAuth client).
@@ -92,17 +100,22 @@ export async function googleAuthRoutes(app: FastifyInstance) {
       if (info.aud !== clientId() || info.email_verified !== "true" || !email) {
         return reply.code(403).send({ error: "google account not allowed" });
       }
+      const displayName = (info.name ?? "").trim() || email.split("@")[0];
       if (email === allowedEmail()) {
         issueSessionFor(reply, { email, name: ownerDisplayName(), role: "owner" });
       } else if (invites.isActive(email)) {
-        issueSessionFor(reply, {
-          email,
-          name: (info.name ?? "").trim() || email.split("@")[0],
-          role: "guest",
-        });
+        // an invite is a pass into somebody else's project, not an account
+        issueSessionFor(reply, { email, name: displayName, role: "guest" });
+      } else if (openSignup()) {
+        // Open signup: a verified Google account becomes a tenant of its own,
+        // with its own workspace and nothing else. This is only safe because
+        // authorization stopped keying off the role — under argos's rule, every
+        // account created here would have been an owner of the whole box.
+        issueSessionFor(reply, { email, name: displayName, role: "owner" });
       } else {
-        // known Google account, not invited: land on the SPA's "not invited"
-        // screen instead of raw JSON — this URL is what a friend will see
+        // known Google account, no invite, signup closed: land on the SPA's
+        // "not invited" screen instead of raw JSON — this URL is what a friend
+        // will see
         return reply.redirect("/#denied");
       }
       reply.redirect("/");
