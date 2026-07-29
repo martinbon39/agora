@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { api, type ArgosNotification, type PresencePeer, type Project, type Session } from "./api";
+import { api, type AgoraNotification, type PresencePeer, type Project, type Session } from "./api";
 import { serverEvents, tabClientId } from "./events";
 import { useCurrentUser } from "./auth/userContext";
 import { enablePush, pushEnabled, pushSupported, registerServiceWorker } from "./push";
@@ -39,13 +39,13 @@ export default function App() {
   const [activeId, setActiveIdState] = useState<string | null>(sessionIdFromHash());
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifState, setNotifState] = useState<"off" | "on" | "unsupported">("unsupported");
-  const [inbox, setInbox] = useState<ArgosNotification[]>([]);
+  const [inbox, setInbox] = useState<AgoraNotification[]>([]);
   const [unread, setUnread] = useState(0);
   const refreshRef = useRef<() => void>(() => {});
   // one canvas PER PROJECT, every device — CanvasView adapts to touch
   const canvasRef = useRef<CanvasHandle>(null);
   const [activeCanvas, setActiveCanvasState] = useState<string | null>(() =>
-    localStorage.getItem("argos.activeCanvas") ?? localStorage.getItem("orbit.activeCanvas")
+    localStorage.getItem("agora.activeCanvas") ?? localStorage.getItem("agora.activeCanvas")
   );
   // session to center on right after a canvas switch (remount) settles
   const [canvasFocus, setCanvasFocus] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export default function App() {
   const [wallOpen, setWallOpen] = useState(false);
   const setActiveCanvas = useCallback((projectPath: string) => {
     setActiveCanvasState(projectPath);
-    localStorage.setItem("argos.activeCanvas", projectPath);
+    localStorage.setItem("agora.activeCanvas", projectPath);
   }, []);
   const activeCanvasRef = useRef(activeCanvas);
   activeCanvasRef.current = activeCanvas;
@@ -133,7 +133,7 @@ export default function App() {
         const { build } = await (await fetch("/api/version")).json();
         if (knownBuild === null) knownBuild = build;
         else if (build !== knownBuild) {
-          toast("argos updated — reloading…", { id: "reload" });
+          toast("agora updated — reloading…", { id: "reload" });
           setTimeout(() => location.reload(), 600);
         }
       } catch {}
@@ -153,7 +153,7 @@ export default function App() {
           } else if (msg.type === "sessions_changed") {
             refreshRef.current();
           } else if (msg.type === "notification") {
-            const n = msg.notification as ArgosNotification;
+            const n = msg.notification as AgoraNotification;
             setInbox((list) => [n, ...list]);
             setUnread((u) => u + 1);
             toast(n.title, {
@@ -336,7 +336,7 @@ export default function App() {
     (s) => s.status === "running" && s.archived_at == null && s.agent_state === "needs_approval"
   ).length;
   useEffect(() => {
-    document.title = pendingCount > 0 ? `(${pendingCount}) argos` : (active?.name ?? "argos");
+    document.title = pendingCount > 0 ? `(${pendingCount}) agora` : (active?.name ?? "agora");
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (link) link.href = pendingCount > 0 ? "/icon-alert.svg" : "/icon.svg";
   }, [pendingCount, active?.name]);

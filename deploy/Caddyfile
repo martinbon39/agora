@@ -1,6 +1,6 @@
-# /etc/caddy/Caddyfile — replace argos.example.com with the real domain.
+# /etc/caddy/Caddyfile — replace agora.example.com with the real domain.
 # Caddy terminates TLS (automatic Let's Encrypt) and proxies HTTP + WebSocket.
-argos.example.com {
+agora.example.com {
 	reverse_proxy 127.0.0.1:4560
 
 	header {

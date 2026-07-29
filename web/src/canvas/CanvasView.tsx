@@ -203,7 +203,7 @@ function CanvasInner(
   const skipSaveRef = useRef(false);
 
   // Links drawn by hand are part of the document — they are a PERMISSION (two
-  // linked terminals may read each other via `argos peek`), so losing them on
+  // linked terminals may read each other via `agora peek`), so losing them on
   // the next save would silently revoke it. They used to be dropped here.
   const linksRef = useRef<StoredEdge[]>([]);
   linksRef.current = links;
@@ -645,7 +645,7 @@ function CanvasInner(
   );
 
   /** Drawing a link between two terminals GRANTS a permission: from now on each
-   *  of their agents may read the other with `argos peek`. Nothing is pushed —
+   *  of their agents may read the other with `agora peek`. Nothing is pushed —
    *  the link is only the authorisation, exactly as in nodeterm. */
   const onConnect = useCallback(
     (c: { source?: string | null; target?: string | null }) => {
@@ -674,7 +674,7 @@ function CanvasInner(
         (n) => sessionsRef.current.find((s) => s.id === n?.data?.sessionId)?.name ?? "terminal"
       );
       toast.success(`${names[0]} and ${names[1]} can now read each other`, {
-        description: "Either can run `argos peek <name>`. Double-click the link to revoke it.",
+        description: "Either can run `agora peek <name>`. Double-click the link to revoke it.",
       });
     },
     []
@@ -1004,7 +1004,7 @@ function CanvasInner(
   }, []);
 
 
-  // parent → child edges for spawned sub-agents (`argos spawn`).
+  // parent → child edges for spawned sub-agents (`agora spawn`).
   // Keyed on a SIGNATURE, not the sessions array: App refetches sessions every
   // 10s with fresh identity, and a new edges array makes React Flow remount
   // them — the animated dashes restarted visibly ("flickering links").

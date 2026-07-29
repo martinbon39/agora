@@ -122,7 +122,7 @@ export function list(): Account[] {
 }
 
 /** A human-chosen name, kept beside the config so it survives a re-login. */
-const labelFile = (dir: string) => path.join(dir, ".argos-label");
+const labelFile = (dir: string) => path.join(dir, ".agora-label");
 const readLabel = (dir: string): string | null => {
   try {
     return fs.readFileSync(labelFile(dir), "utf8").trim() || null;

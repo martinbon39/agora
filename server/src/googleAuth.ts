@@ -11,10 +11,10 @@ import {
 import { env } from "./config.js";
 
 /**
- * "Sign in with Google": ARGOS_ALLOWED_EMAIL is the owner, any email on the
+ * "Sign in with Google": AGORA_ALLOWED_EMAIL is the owner, any email on the
  * invites allowlist becomes a guest session, everyone else bounces to
- * /#denied. Config via env: ARGOS_GOOGLE_CLIENT_ID, ARGOS_GOOGLE_CLIENT_SECRET,
- * ARGOS_ALLOWED_EMAIL (ORBIT_* accepted as fallback). The id_token is validated
+ * /#denied. Config via env: AGORA_GOOGLE_CLIENT_ID, AGORA_GOOGLE_CLIENT_SECRET,
+ * AGORA_ALLOWED_EMAIL. The id_token is validated
  * server-side through Google's tokeninfo endpoint (signature + expiry checked
  * by Google).
  */
@@ -32,7 +32,7 @@ export async function googleAuthRoutes(app: FastifyInstance) {
   app.get("/api/auth/google", async (req, reply) => {
     if (!googleConfigured()) return reply.code(503).send({ error: "google auth not configured" });
     const state = crypto.randomBytes(16).toString("base64url");
-    reply.setCookie("orbit_oauth_state", state, {
+    reply.setCookie("agora_oauth_state", state, {
       path: "/api/auth/google",
       httpOnly: true,
       sameSite: "lax",
@@ -54,11 +54,11 @@ export async function googleAuthRoutes(app: FastifyInstance) {
     async (req, reply) => {
       if (!googleConfigured()) return reply.code(503).send({ error: "google auth not configured" });
       const { code, state } = req.query;
-      const cookieState = req.cookies?.orbit_oauth_state;
+      const cookieState = req.cookies?.agora_oauth_state;
       if (!code || !state || !cookieState || state !== cookieState) {
         return reply.code(400).send({ error: "invalid oauth state" });
       }
-      reply.clearCookie("orbit_oauth_state", { path: "/api/auth/google" });
+      reply.clearCookie("agora_oauth_state", { path: "/api/auth/google" });
 
       const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",

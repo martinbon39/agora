@@ -14,7 +14,7 @@ import * as tmux from "../tmux.js";
  * at launch, and it is the half worth keeping — a pull costs the reader a turn
  * and nobody else anything, while a push costs everyone their train of thought.
  *
- * So: the canvas edges ARE the permission. `argos peek <name>` answers only for
+ * So: the canvas edges ARE the permission. `agora peek <name>` answers only for
  * sessions whose terminal nodes are joined by a link Martin drew.
  */
 
@@ -174,7 +174,7 @@ const stripAnsi = (s: string) =>
   s.replace(/\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07\x1b]*(\x07|\x1b\\)|\x1b[()][A-Z0-9]/g, "");
 
 export async function peekRoutes(app: FastifyInstance) {
-  /** `argos peek` with no target: who am I allowed to read? */
+  /** `agora peek` with no target: who am I allowed to read? */
   app.get("/api/hooks/peek", async (req, reply) => {
     const { session, target, mode, lines } = req.query as {
       session?: string;

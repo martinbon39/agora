@@ -1,8 +1,8 @@
 // Canvas-link permission gate — node deploy/gate-peek.mjs (build the server first).
 //
 // A link drawn between two terminal nodes is what lets their agents deal with
-// each other at all, and it grants BOTH halves: `argos read` (see what they are
-// doing) and `argos send` (write into their terminal). nodeterm's model, where
+// each other at all, and it grants BOTH halves: `agora read` (see what they are
+// doing) and `agora send` (write into their terminal). nodeterm's model, where
 // the graph IS the authorisation — extended to writing, because one capability
 // without the other made no sense: an agent could interrupt anyone on the
 // project while only being allowed to read the ones it was linked to.
@@ -16,9 +16,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "argos-peek-"));
-process.env.ARGOS_DATA_DIR = path.join(tmp, "data");
-process.env.ARGOS_PROJECTS_DIR = path.join(tmp, "projects");
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agora-peek-"));
+process.env.AGORA_DATA_DIR = path.join(tmp, "data");
+process.env.AGORA_PROJECTS_DIR = path.join(tmp, "projects");
 
 const { initDb, canvas, sessions } = await import("../server/dist/db.js");
 const { linkedSessionIds } = await import("../server/dist/routes/peek.js");

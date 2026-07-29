@@ -5,7 +5,7 @@ import { config, logsDir } from "./config.js";
 
 const exec = promisify(execFile);
 
-const PREFIX = "orbit-";
+const PREFIX = "agora-";
 
 function tmux(args: string[]) {
   return exec("tmux", ["-L", config.tmuxSocket, ...args]);
@@ -17,8 +17,8 @@ const target = (id: string) => `=${PREFIX}${id}`;
 export const sessionLogPath = (id: string) => path.join(logsDir(), `${id}.log`);
 
 /**
- * Start argos's dedicated tmux server (idempotent) and set global options.
- * status off: argos's UI is the chrome, no tmux status bar inside the terminal.
+ * Start agora's dedicated tmux server (idempotent) and set global options.
+ * status off: agora's UI is the chrome, no tmux status bar inside the terminal.
  * mouse on: wheel scrolls tmux history, giving real scrollback in the browser.
  * exit-empty off: keep the server alive with zero sessions, so options persist.
  */

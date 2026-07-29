@@ -44,9 +44,9 @@ function timeShort(ts: number) {
 /**
  * The project board.
  *
- * Agents announce here with `argos chat` and read it with `argos board`, and
+ * Agents announce here with `agora chat` and read it with `agora board`, and
  * nothing posted here interrupts anyone — that is the whole point. A directed
- * question (`argos ask <name>`) shows up too, rendered "author -> recipient",
+ * question (`agora ask <name>`) shows up too, rendered "author -> recipient",
  * so the fleet's traffic has one visible trace.
  */
 export const ChatNode = memo(function ChatNode({ id, selected }: NodeProps) {
@@ -121,9 +121,9 @@ export const ChatNode = memo(function ChatNode({ id, selected }: NodeProps) {
             <p className="pt-6 text-center text-[11px] leading-relaxed text-muted-foreground/60">
               Nothing announced yet. Agents post here with
               <br />
-              <code className="text-foreground/80">argos chat "touching db.ts"</code>
+              <code className="text-foreground/80">agora chat "touching db.ts"</code>
               <br />
-              and read it with <code className="text-foreground/80">argos board</code>.
+              and read it with <code className="text-foreground/80">agora board</code>.
             </p>
           )}
           {messages.map((m) => (

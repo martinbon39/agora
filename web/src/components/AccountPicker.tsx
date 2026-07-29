@@ -54,7 +54,7 @@ export function AccountPicker({ project, className }: { project: string; classNa
     }
   };
 
-  /** argos cannot do the OAuth dance: prepare the isolated config dir, then
+  /** agora cannot do the OAuth dance: prepare the isolated config dir, then
    *  open a terminal pointed at it where `claude` runs the real login. */
   const add = async () => {
     const label = window.prompt(

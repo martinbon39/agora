@@ -18,10 +18,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-// isolated data + projects dirs: the gate must never touch the live orbit.db
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "argos-scope-"));
-process.env.ARGOS_DATA_DIR = path.join(tmp, "data");
-process.env.ARGOS_PROJECTS_DIR = path.join(tmp, "projects");
+// isolated data + projects dirs: the gate must never touch the live agora.db
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agora-scope-"));
+process.env.AGORA_DATA_DIR = path.join(tmp, "data");
+process.env.AGORA_PROJECTS_DIR = path.join(tmp, "projects");
 
 const ALPHA = path.join(tmp, "projects", "alpha"); // the guest's project
 const BETA = path.join(tmp, "projects", "beta"); // someone else's project
@@ -31,7 +31,7 @@ fs.writeFileSync(path.join(ALPHA, "readme.txt"), "public to the guest");
 
 // the escape: a symlink inside alpha pointing at a file outside projectsDir
 const SECRET = path.join(tmp, "secret.txt");
-fs.writeFileSync(SECRET, "ARGOS_HOOK_SECRET_LOOKALIKE");
+fs.writeFileSync(SECRET, "AGORA_HOOK_SECRET_LOOKALIKE");
 fs.symlinkSync(SECRET, path.join(ALPHA, "innocent.txt"));
 
 const { initDb, sessions, canvas } = await import("../server/dist/db.js");
@@ -90,12 +90,12 @@ await app.register(proxyRoutes);
 
 const cookieFor = async (who) => {
   const res = await app.inject({ method: "GET", url: `/test-login/${who}` });
-  return res.cookies.find((c) => c.name === "orbit_session").value;
+  return res.cookies.find((c) => c.name === "agora_session").value;
 };
 const owner = await cookieFor("owner");
 const guest = await cookieFor("guest");
 const as = (token, opts) =>
-  app.inject({ ...opts, cookies: { orbit_session: token }, headers: { ...opts.headers } });
+  app.inject({ ...opts, cookies: { agora_session: token }, headers: { ...opts.headers } });
 const readFile = (token, project, p) =>
   as(token, {
     method: "GET",
@@ -205,7 +205,7 @@ for (const [label, url] of [
 const peekApp = Fastify();
 await peekApp.register(peekRoutes);
 await peekApp.register(chatRoutes);
-const hookHeaders = { "x-argos-hook": hookSecret() };
+const hookHeaders = { "x-agora-hook": hookSecret() };
 const peek = (query) =>
   peekApp.inject({ method: "GET", url: `/api/hooks/peek?${query}`, headers: hookHeaders });
 

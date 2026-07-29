@@ -1,6 +1,6 @@
 // Paste gate — run from a dev machine: `npm run dev -w web` then `node deploy/gate-paste.mjs`
 // (needs `npm i playwright` + `npx playwright install chromium` somewhere on PATH of node)
-// Browser-level proof of the argos paste path.
+// Browser-level proof of the agora paste path.
 // Drives the REAL frontend (vite dev, real TerminalView + real xterm) in a real
 // Chromium, with the browser's actual clipboard and actual Ctrl+V keystrokes.
 // The attach WebSocket is mocked in the test, so we capture exactly what the
@@ -14,7 +14,7 @@ const PNG_1PX =
 const SESSION = {
   id: "s1",
   name: "proof",
-  project_path: "/home/orbit",
+  project_path: "/home/agora",
   harness: "shell",
   command: "bash",
   status: "running",
@@ -59,7 +59,7 @@ await page.route("**/api/notifications", (r) =>
 await page.route("**/api/uploads/**", async (r) => {
   uploads.push(r.request().postDataJSON());
   await r.fulfill({
-    json: { path: "/home/orbit/.orbit/uploads/s1/x.png", url: "/uploads/s1/x.png", pasteable: true },
+    json: { path: "/home/agora/.agora/uploads/s1/x.png", url: "/uploads/s1/x.png", pasteable: true },
   });
 });
 await page.routeWebSocket(/\/ws\/events/, () => {});
@@ -92,12 +92,12 @@ const sentText = () => ptyInput.join("");
 const CTRL_V = "\x16";
 
 // --- A. Ctrl+V with TEXT in the clipboard ---------------------------------
-await setClipboard({ "text/plain": "ORBIT-TEXTE-42" });
+await setClipboard({ "text/plain": "AGORA-TEXTE-42" });
 ptyInput.length = 0;
 uploads.length = 0;
 await page.keyboard.press("Control+v");
-await waitFor(() => sentText().includes("ORBIT-TEXTE-42"));
-check("A1: pasted text reaches the pty", sentText().includes("ORBIT-TEXTE-42"),
+await waitFor(() => sentText().includes("AGORA-TEXTE-42"));
+check("A1: pasted text reaches the pty", sentText().includes("AGORA-TEXTE-42"),
   JSON.stringify(sentText().slice(0, 60)));
 check("A2: no literal \\x16 (Ctrl+V) is sent", !sentText().includes(CTRL_V),
   JSON.stringify(sentText().slice(0, 60)));

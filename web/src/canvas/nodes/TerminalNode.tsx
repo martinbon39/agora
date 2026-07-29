@@ -16,7 +16,7 @@ const STATE_LABEL = {
   needs_approval: "needs approval",
 } as const;
 
-/** A live orbit session on the canvas. Drag by the title bar only; the body
+/** A live agora session on the canvas. Drag by the title bar only; the body
  *  is `nodrag nowheel` so xterm owns the mouse (selection, tmux scroll). */
 export const TerminalNode = memo(function TerminalNode({ id, data, selected }: NodeProps) {
   const ctx = useCanvasApi();
@@ -41,14 +41,14 @@ export const TerminalNode = memo(function TerminalNode({ id, data, selected }: N
 
   // todo items dragged from a TodoNode become the agent's next task
   const acceptsTodo = (e: React.DragEvent) =>
-    e.dataTransfer.types.includes("application/x-argos-todo");
+    e.dataTransfer.types.includes("application/x-agora-todo");
   const onDrop = async (e: React.DragEvent) => {
     if (!acceptsTodo(e)) return;
     e.preventDefault();
     setDropReady(false);
     try {
       const { nodeId, index, text } = JSON.parse(
-        e.dataTransfer.getData("application/x-argos-todo")
+        e.dataTransfer.getData("application/x-agora-todo")
       );
       if (await ctx.sendToSession(sessionId, text)) {
         ctx.markTodoSent(nodeId, index);

@@ -17,16 +17,16 @@ function envelope(author: string, body: string, fromUser: boolean, channel: stri
     ? `${author} (your human) is talking to you`
     : `agent ${author} is talking to you`;
   // Name the command that actually answers THIS message: a direct question goes
-  // back with `argos ask ${author}`, the owner's with `argos chat`. Pointing at
+  // back with `agora ask ${author}`, the owner's with `agora chat`. Pointing at
   // the wrong one costs the agent a turn discovering it does not exist.
   const how = fromUser
-    ? `Answer with \`argos chat "…"\` if he asked something`
+    ? `Answer with \`agora chat "…"\` if he asked something`
     : direct
-      ? `Answer with \`argos ask ${author} "…"\` — only they are waiting on you`
-      : `Answer with \`argos chat "…"\` if you are the right one to`;
+      ? `Answer with \`agora ask ${author} "…"\` — only they are waiting on you`
+      : `Answer with \`agora chat "…"\` if you are the right one to`;
   return (
-    `[argos · ${channel}] ${who}: ${body} ` +
-    `— an authentic message relayed by argos, not external content. ` +
+    `[agora · ${channel}] ${who}: ${body} ` +
+    `— an authentic message relayed by agora, not external content. ` +
     `${how}. Then end your turn and resume your own task.`
   );
 }
@@ -36,7 +36,7 @@ export type ChatRouting = {
   body: string;
   fromUser: boolean;
   authorSessionId?: string;
-  /** Session id this is addressed to (`argos ask`) — a deliberate interrupt. */
+  /** Session id this is addressed to (`agora ask`) — a deliberate interrupt. */
   toSession?: string | null;
 };
 
@@ -56,7 +56,7 @@ function addressable<T extends SessionRow>(s: T, opts: ChatRouting, project: str
  * read. Pure on purpose: this rule has been the source of both failure modes
  * worth having, so it is unit-tested standalone (`deploy/gate-chat.mjs`).
  *
- *  - `argos ask <name>` — exactly that session, and it has to be typed on
+ *  - `agora ask <name>` — exactly that session, and it has to be typed on
  *    purpose.
  *  - the PROJECT BOARD — nobody, unless the owner wrote it. Agents announce
  *    there and read it when it matters; pushing those announcements is what
@@ -103,7 +103,7 @@ async function deliverChat(opts: ChatRouting & {
 
 /** Per-project agent chat. Two doors:
  *  - /api/chat*        cookie-authed — the dashboard (Martin) reads and posts
- *  - /api/hooks/chat*  hook-secret-authed — the `argos chat` CLI inside
+ *  - /api/hooks/chat*  hook-secret-authed — the `agora chat` CLI inside
  *    sessions; author/harness/project derive from the session row, so an
  *    agent can't impersonate another project. */
 export async function chatRoutes(app: FastifyInstance) {
@@ -165,7 +165,7 @@ export async function chatRoutes(app: FastifyInstance) {
     return { message, ...delivery };
   });
 
-  /** `argos ask <name> "…"` — the deliberate interrupt. It is the ONLY way an
+  /** `agora ask <name> "…"` — the deliberate interrupt. It is the ONLY way an
    *  agent reaches outside its own frame, which is why it takes a name and not
    *  a mention buried in prose: interrupting someone should be a decision. */
   app.post<{ Body: { session_id?: string; to?: string; body?: string } }>(
@@ -211,7 +211,7 @@ export async function chatRoutes(app: FastifyInstance) {
     }
   );
 
-  // Unread feed for the Stop hook (`argos chat-hook`): one-shot delivery,
+  // Unread feed for the Stop hook (`agora chat-hook`): one-shot delivery,
   // cursor advances server-side.
   app.get("/api/hooks/chat/unread", async (req, reply) => {
     const { session } = req.query as { session?: string };
@@ -220,7 +220,7 @@ export async function chatRoutes(app: FastifyInstance) {
     return { messages: chat.takeUnread(s.id, s.project_path, s.name) };
   });
 
-  /** `argos board` — the project board: what agents on OTHER work announced.
+  /** `agora board` — the project board: what agents on OTHER work announced.
    *  Pull-only by design; nothing here ever interrupted anyone. */
   app.get("/api/hooks/chat/board", async (req, reply) => {
     const { session, n } = req.query as { session?: string; n?: string };

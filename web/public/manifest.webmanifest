@@ -1,6 +1,6 @@
 {
-  "name": "argos",
-  "short_name": "argos",
+  "name": "agora",
+  "short_name": "agora",
   "description": "Cockpit for Claude Code and CLI agent sessions",
   "start_url": "/",
   "display": "standalone",

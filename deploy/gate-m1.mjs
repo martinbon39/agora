@@ -57,8 +57,8 @@ try {
   let a = await attach(sid);
   await waitFor(() => a.buf.length > 0, 5000, "initial redraw");
   await sleep(300);
-  input(a, "echo orbit-$((40+2))\r");
-  await waitFor(() => a.buf.includes("orbit-42"), 5000, "echo output");
+  input(a, "echo agora-$((40+2))\r");
+  await waitFor(() => a.buf.includes("agora-42"), 5000, "echo output");
   check("echo roundtrip", true);
 
   // 3. start a background counter, detach, reattach -> still running

@@ -4,9 +4,9 @@
 #   xclip -selection clipboard -t TARGETS -o
 # then fetches with
 #   xclip -selection clipboard -t <mime> -o
-# The orbit server writes the last uploaded image to ~/.orbit/clipboard/
+# The agora server writes the last uploaded image to ~/.agora/clipboard/
 # (files: image + mime); this shim serves them.
-CLIP_DIR="${ORBIT_DATA_DIR:-$HOME/.orbit}/clipboard"
+CLIP_DIR="${AGORA_DATA_DIR:-$HOME/.agora}/clipboard"
 
 target=""
 prev=""

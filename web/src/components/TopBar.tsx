@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { BellIcon, EyeIcon, FolderPlusIcon, LogOutIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { api, type ArgosNotification, type AuthUser, type PresencePeer, type Project, type Session } from "@/api";
+import { api, type AgoraNotification, type AuthUser, type PresencePeer, type Project, type Session } from "@/api";
 import { Logo } from "./Logo";
 import { Inbox } from "./Inbox";
 import { ArchiveTray } from "./ArchiveTray";
@@ -70,7 +70,7 @@ export function TopBar({
   projects: Project[];
   sessions: Session[];
   activeProject: string | null;
-  notifications: ArgosNotification[];
+  notifications: AgoraNotification[];
   unread: number;
   onMarkRead: () => void;
   onOpenProject: (path: string) => void;
@@ -123,7 +123,7 @@ export function TopBar({
     <header className="relative z-40 flex h-11 shrink-0 items-center gap-3 border-b border-border bg-card/60 px-3 backdrop-blur-xl">
       <div className="flex shrink-0 items-center gap-2 pl-0.5 pr-1">
         <Logo className="size-4 text-foreground" />
-        <span className="text-sm font-medium tracking-tight max-sm:sr-only">argos</span>
+        <span className="text-sm font-medium tracking-tight max-sm:sr-only">agora</span>
         {!locked && <Tooltip>
           <TooltipTrigger
             render={

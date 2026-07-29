@@ -6,7 +6,7 @@ import { hookSecret } from "./auth.js";
 /**
  * Claude Code reports its own state through lifecycle hooks — far more
  * reliable than scraping terminal output. Per session we generate a settings
- * file whose hooks POST the event payload to argos, and launch
+ * file whose hooks POST the event payload to agora, and launch
  * `claude --settings <file>`.
  */
 const FORWARDED_EVENTS = ["UserPromptSubmit", "PreToolUse", "Notification", "Stop", "SessionEnd"];
@@ -24,20 +24,20 @@ export function writeHookSettings(sessionId: string): string {
         hooks: [
           {
             type: "command",
-            // -m 3: never let a dead argos server stall Claude's turn
-            command: `curl -s -m 3 -X POST -H 'Content-Type: application/json' -H 'X-Argos-Hook: ${hookSecret()}' --data-binary @- ${url} >/dev/null 2>&1 || true`,
+            // -m 3: never let a dead agora server stall Claude's turn
+            command: `curl -s -m 3 -X POST -H 'Content-Type: application/json' -H 'X-Agora-Hook: ${hookSecret()}' --data-binary @- ${url} >/dev/null 2>&1 || true`,
           },
         ],
       },
     ];
   }
-  // Chat delivery: at end of turn, `argos chat-hook` fetches this session's
+  // Chat delivery: at end of turn, `agora chat-hook` fetches this session's
   // unread project-chat messages; if any, it blocks the stop with them as
   // reason so the agent reads them immediately. The server-side read cursor
   // guarantees single delivery — no infinite continue loops.
   (hooks.Stop as { hooks: unknown[] }[])[0].hooks.push({
     type: "command",
-    command: "argos chat-hook || true",
+    command: "agora chat-hook || true",
   });
   fs.mkdirSync(hooksDir(), { recursive: true });
   const file = path.join(hooksDir(), `${sessionId}.json`);

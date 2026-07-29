@@ -37,7 +37,7 @@ export async function hookRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  // Agents running inside sessions message Martin here (`argos notify` CLI).
+  // Agents running inside sessions message Martin here (`agora notify` CLI).
   // Under /api/hooks/ on purpose: authenticated by the hook secret, not a cookie.
   app.post<{ Body: { title?: string; body?: string; link?: string; session_id?: string } }>(
     "/api/hooks/notify",

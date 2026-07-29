@@ -94,7 +94,7 @@ export async function projectRoutes(app: FastifyInstance) {
       fs.mkdirSync(dest);
 
       // fresh project: init git so sessions can commit right away — with an
-      // explicit identity, the argos user has no global git config
+      // explicit identity, the agora user has no global git config
       try {
         await exec("git", ["-C", dest, "init", "-b", "main"]);
         fs.writeFileSync(path.join(dest, "README.md"), `# ${name}\n`);
@@ -103,9 +103,9 @@ export async function projectRoutes(app: FastifyInstance) {
           "-C",
           dest,
           "-c",
-          "user.name=argos",
+          "user.name=agora",
           "-c",
-          "user.email=argos@localhost",
+          "user.email=agora@localhost",
           "commit",
           "-m",
           "init",

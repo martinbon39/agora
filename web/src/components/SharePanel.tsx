@@ -41,8 +41,8 @@ export function SharePanel({
       setEmail("");
       toast.success(`${target} can now sign in with Google`, {
         description: scope
-          ? `Limited to the "${projectName(scope)}" canvas. Send them the argos URL.`
-          : "Access to all of argos. Send them the argos URL.",
+          ? `Limited to the "${projectName(scope)}" canvas. Send them the agora URL.`
+          : "Access to all of agora. Send them the agora URL.",
       });
     } catch (e) {
       toast.error("Invitation failed", { description: String(e) });
@@ -131,7 +131,7 @@ export function SharePanel({
                   "{p.name}" canvas only
                 </option>
               ))}
-              <option value="">⚠ All of argos (every canvas)</option>
+              <option value="">⚠ All of agora (every canvas)</option>
             </select>
           </form>
           {invites.length > 0 && (
@@ -158,7 +158,7 @@ export function SharePanel({
                     <span className={cn("flex min-w-0 flex-1 flex-col", revoked && "opacity-50")}>
                       <span className={cn("truncate", revoked && "line-through")}>{inv.email}</span>
                       <span className="truncate text-[10px] text-muted-foreground">
-                        {inv.project ? `"${projectName(inv.project)}" canvas` : "all of argos"}
+                        {inv.project ? `"${projectName(inv.project)}" canvas` : "all of agora"}
                       </span>
                     </span>
                     {revoked ? (

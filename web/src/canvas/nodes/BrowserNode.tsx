@@ -4,7 +4,7 @@ import { ExternalLink, Globe, RotateCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvasApi } from "../context";
 
-/** `localhost:5173`, `:5173`, `5173` → the orbit server proxies to that port
+/** `localhost:5173`, `:5173`, `5173` → the agora server proxies to that port
  *  ON THE VPS (where agents run their dev servers). Anything else → https. */
 export function normalizeUrl(input: string): string {
   const t = input.trim();
@@ -85,7 +85,7 @@ export const BrowserNode = memo(function BrowserNode({ id, data, selected }: Nod
         </header>
         {url ? (
           /* NO allow-same-origin: proxied localhost apps are untrusted code
-             served from orbit's origin — the opaque origin keeps them away from
+             served from agora's origin — the opaque origin keeps them away from
              the auth cookie and /api (plus the Sec-Fetch-Site check in auth.ts) */
           <iframe
             key={nonce}
@@ -100,7 +100,7 @@ export const BrowserNode = memo(function BrowserNode({ id, data, selected }: Nod
             <Globe className="size-6 text-muted-foreground/40" />
             <p className="text-xs text-muted-foreground">
               Type <span className="font-medium text-foreground">localhost:5173</span> to see a
-              server running on this machine (proxied by argos),
+              server running on this machine (proxied by agora),
               <br />
               or a full URL — if the site allows being embedded.
             </p>

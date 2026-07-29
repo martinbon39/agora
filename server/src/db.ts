@@ -19,7 +19,7 @@ export interface SessionRow {
   pinned?: number;
   total_cost?: number;
   last_summary?: string | null;
-  /** Session that spawned this one via `argos spawn` (canvas edge). */
+  /** Session that spawned this one via `agora spawn` (canvas edge). */
   parent_id?: string | null;
 }
 
@@ -81,7 +81,7 @@ export function initDb(): Database.Database {
     `ALTER TABLE sessions ADD COLUMN total_cost REAL NOT NULL DEFAULT 0`,
     `ALTER TABLE sessions ADD COLUMN last_summary TEXT`,
     `ALTER TABLE sessions ADD COLUMN parent_id TEXT`,
-    // set = a deliberate one-to-one interruption (`argos ask`), null = the board
+    // set = a deliberate one-to-one interruption (`agora ask`), null = the board
     `ALTER TABLE chat_messages ADD COLUMN to_session TEXT`,
   ]) {
     try {
@@ -188,7 +188,7 @@ export interface ChatMessageRow {
   harness: string;
   body: string;
   created_at: number;
-  /** Session this was addressed to (`argos ask`); null = a board message. */
+  /** Session this was addressed to (`agora ask`); null = a board message. */
   to_session?: string | null;
   /** Display name of that session, joined for the UI. */
   to_name?: string | null;
@@ -250,7 +250,7 @@ export const chat = {
        ON CONFLICT(session_id) DO UPDATE SET last_id = MAX(chat_cursors.last_id, excluded.last_id)`
     ).run(sessionId, lastId);
   },
-  /** The project board — announcements plus the trace of every `argos ask`.
+  /** The project board — announcements plus the trace of every `agora ask`.
    *  The recipient's name is joined in so it can render "eos -> hecate". */
   board(project_path: string, limit = 200): ChatMessageRow[] {
     return db

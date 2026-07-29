@@ -1,17 +1,14 @@
 #!/usr/bin/env node
-// argos — CLI for agents running inside argos sessions.
-// (Installed as both `argos` and `orbit`: existing sessions and their hook
-//  settings still call the old name.)
-//
-//   argos notify <title> [body…] [--link <url>] [--session <id>]
+// agora — CLI for agents running inside agora sessions.
+//   agora notify <title> [body…] [--link <url>] [--session <id>]
 //       Send the owner a notification: dashboard inbox + web push.
-//       --session defaults to ARGOS_SESSION_ID (injected into every session).
+//       --session defaults to AGORA_SESSION_ID (injected into every session).
 //
-//   argos artifact <file> [--name <name>]
-//       Publish a file to ~/.orbit/artifacts/ and print its served URL.
+//   agora artifact <file> [--name <name>]
+//       Publish a file to ~/.agora/artifacts/ and print its served URL.
 //
-// Auth: the hooks secret (~/.orbit/hook-secret), same channel as the Claude
-// Code hooks — anything running as the argos user may notify.
+// Auth: the hooks secret (~/.agora/hook-secret), same channel as the Claude
+// Code hooks — anything running as the agora user may notify.
 // CommonJS: installed outside the repo (~/.local/bin), no package.json nearby.
 "use strict";
 
@@ -19,16 +16,12 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-// ARGOS_* with ORBIT_* fallback: sessions spawned before the rename still
-// carry the old variable names in their (frozen) tmux environment.
-const env = (name) => process.env[`ARGOS_${name}`] ?? process.env[`ORBIT_${name}`];
-// data dir stays ~/.orbit: live db/logs/hook files, renaming it would break
-// every running session's absolute paths
-const dataDir = env("DATA_DIR") ?? path.join(os.homedir(), ".orbit");
-const port = Number(env("PORT") ?? 4560);
+const env = (name) => process.env[`AGORA_${name}`];
+const dataDir = env("DATA_DIR") ?? path.join(os.homedir(), ".agora");
+const port = Number(env("PORT") ?? 4570);
 
 function fail(msg) {
-  console.error(`argos: ${msg}`);
+  console.error(`agora: ${msg}`);
   process.exit(1);
 }
 
@@ -36,7 +29,7 @@ function secret() {
   try {
     return fs.readFileSync(path.join(dataDir, "hook-secret"), "utf8").trim();
   } catch {
-    fail(`secret not found (${path.join(dataDir, "hook-secret")}) — has the argos server ever run?`);
+    fail(`secret not found (${path.join(dataDir, "hook-secret")}) — has the agora server ever run?`);
   }
 }
 
@@ -46,7 +39,7 @@ function secret() {
 function origin() {
   try {
     const envFile = fs.readFileSync(path.join(dataDir, "env"), "utf8");
-    const m = envFile.match(/^(?:ARGOS|ORBIT)_ORIGIN=(.+)$/m);
+    const m = envFile.match(/^AGORA_ORIGIN=(.+)$/m);
     if (m) return m[1].trim().replace(/^["']|["']$/g, "").replace(/\/$/, "");
   } catch {}
   const fromEnv = env("ORIGIN");
@@ -76,7 +69,7 @@ function parseArgs(argv) {
 async function notify(argv) {
   const { flags, positional } = parseArgs(argv);
   const [title, ...rest] = positional;
-  if (!title) fail("usage: argos notify <title> [body…] [--link <url>]");
+  if (!title) fail("usage: agora notify <title> [body…] [--link <url>]");
   const payload = {
     title,
     body: rest.join(" "),
@@ -87,11 +80,11 @@ async function notify(argv) {
   try {
     res = await fetch(`http://127.0.0.1:${port}/api/hooks/notify`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Argos-Hook": secret() },
+      headers: { "Content-Type": "application/json", "X-Agora-Hook": secret() },
       body: JSON.stringify(payload),
     });
   } catch (err) {
-    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
   }
   if (!res.ok) fail(`server answered ${res.status}: ${await res.text()}`);
   console.log("notification sent");
@@ -100,16 +93,16 @@ async function notify(argv) {
 async function pc(argv) {
   const { positional } = parseArgs(argv);
   const [op, target] = positional;
-  if ((op !== "ls" && op !== "get") || !target) fail("usage: argos pc <ls|get> <path-on-pc>");
+  if ((op !== "ls" && op !== "get") || !target) fail("usage: agora pc <ls|get> <path-on-pc>");
   let res;
   try {
     res = await fetch(`http://127.0.0.1:${port}/api/hooks/pc`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Argos-Hook": secret() },
+      headers: { "Content-Type": "application/json", "X-Agora-Hook": secret() },
       body: JSON.stringify({ op, path: target }),
     });
   } catch (err) {
-    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
   }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) fail(body.error ?? `server answered ${res.status}`);
@@ -125,7 +118,7 @@ async function pc(argv) {
 function artifact(argv) {
   const { flags, positional } = parseArgs(argv);
   const [file] = positional;
-  if (!file) fail("usage: argos artifact <file> [--name <name>]");
+  if (!file) fail("usage: agora artifact <file> [--name <name>]");
   if (!fs.existsSync(file)) fail(`file not found: ${file}`);
   const name = (flags.name ?? path.basename(file)).replace(/[^A-Za-z0-9._-]/g, "-");
   const dir = path.join(dataDir, "artifacts");
@@ -136,13 +129,13 @@ function artifact(argv) {
 
 /** The project board. A post here reaches NOBODY's terminal — it is an
  *  announcement others read when it matters to them. To reach one session, use
- *  `argos send`; to read one without waking it, `argos read`. Both need a link
+ *  `agora send`; to read one without waking it, `agora read`. Both need a link
  *  drawn between the two terminals on the canvas. */
 async function chat(argv) {
   const { flags, positional } = parseArgs(argv);
   const session = flags.session ?? env("SESSION_ID");
-  if (!session) fail("ARGOS_SESSION_ID missing — run inside an argos session (or pass --session)");
-  const headers = { "Content-Type": "application/json", "X-Argos-Hook": secret() };
+  if (!session) fail("AGORA_SESSION_ID missing — run inside an agora session (or pass --session)");
+  const headers = { "Content-Type": "application/json", "X-Agora-Hook": secret() };
   try {
     if (positional[0] === "log") {
       const n = Number(positional[1]) || 30;
@@ -158,7 +151,7 @@ async function chat(argv) {
       }
     } else {
       const body = positional.join(" ").trim();
-      if (!body) fail("usage: argos chat <message…> | argos chat log [n]");
+      if (!body) fail("usage: agora chat <message…> | agora chat log [n]");
       const res = await fetch(`http://127.0.0.1:${port}/api/hooks/chat`, {
         method: "POST",
         headers,
@@ -173,12 +166,12 @@ async function chat(argv) {
       if (!woke && /@[\w-]+/.test(body)) {
         console.log(
           "note: an @mention here does not reach anyone — the board interrupts nobody. " +
-            'To reach a linked session: argos send <name> "…", or read it without waking it: argos read <name>'
+            'To reach a linked session: agora send <name> "…", or read it without waking it: agora read <name>'
         );
       }
     }
   } catch (err) {
-    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
   }
 }
 
@@ -188,19 +181,19 @@ async function chat(argv) {
 async function ask(argv) {
   const { flags, positional } = parseArgs(argv);
   const session = flags.session ?? env("SESSION_ID");
-  if (!session) fail("ARGOS_SESSION_ID missing — run inside an argos session (or pass --session)");
+  if (!session) fail("AGORA_SESSION_ID missing — run inside an agora session (or pass --session)");
   const [to, ...rest] = positional;
   const body = rest.join(" ").trim();
-  if (!to || !body) fail('usage: argos send <session-name> "<message>"');
+  if (!to || !body) fail('usage: agora send <session-name> "<message>"');
   let res;
   try {
     res = await fetch(`http://127.0.0.1:${port}/api/hooks/ask`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Argos-Hook": secret() },
+      headers: { "Content-Type": "application/json", "X-Agora-Hook": secret() },
       body: JSON.stringify({ session_id: session, to, body }),
     });
   } catch (err) {
-    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
   }
   const out = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -219,16 +212,16 @@ async function ask(argv) {
 async function board(argv) {
   const { flags, positional } = parseArgs(argv);
   const session = flags.session ?? env("SESSION_ID");
-  if (!session) fail("ARGOS_SESSION_ID missing — run inside an argos session (or pass --session)");
+  if (!session) fail("AGORA_SESSION_ID missing — run inside an agora session (or pass --session)");
   const n = Number(positional[0]) || 30;
   let res;
   try {
     res = await fetch(
       `http://127.0.0.1:${port}/api/hooks/chat/board?session=${encodeURIComponent(session)}&n=${n}`,
-      { headers: { "X-Argos-Hook": secret() } }
+      { headers: { "X-Agora-Hook": secret() } }
     );
   } catch (err) {
-    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
   }
   const out = await res.json().catch(() => ({}));
   if (!res.ok) fail(out.error ?? `server answered ${res.status}`);
@@ -245,15 +238,15 @@ async function board(argv) {
 async function frame(argv) {
   const { flags } = parseArgs(argv);
   const session = flags.session ?? env("SESSION_ID");
-  if (!session) fail("ARGOS_SESSION_ID missing — run inside an argos session (or pass --session)");
+  if (!session) fail("AGORA_SESSION_ID missing — run inside an agora session (or pass --session)");
   let res;
   try {
     res = await fetch(
       `http://127.0.0.1:${port}/api/hooks/frame?session=${encodeURIComponent(session)}`,
-      { headers: { "X-Argos-Hook": secret() } }
+      { headers: { "X-Agora-Hook": secret() } }
     );
   } catch (err) {
-    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
   }
   const info = await res.json().catch(() => ({}));
   if (!res.ok) fail(info.error ?? `server answered ${res.status}`);
@@ -282,13 +275,13 @@ async function frame(argv) {
 
 /** Read what a session you are LINKED to on the canvas is doing.
  *
- *  A link drawn between two terminals grants BOTH halves: reading it (`argos
- *  read`) and writing to it (`argos send`). Reading costs you a turn and the
+ *  A link drawn between two terminals grants BOTH halves: reading it (`agora
+ *  read`) and writing to it (`agora send`). Reading costs you a turn and the
  *  other agent nothing, so it should be your first move and `send` the fallback. */
 async function peek(argv) {
   const { flags, positional } = parseArgs(argv);
   const session = flags.session ?? env("SESSION_ID");
-  if (!session) fail("ARGOS_SESSION_ID missing — run inside an argos session (or pass --session)");
+  if (!session) fail("AGORA_SESSION_ID missing — run inside an agora session (or pass --session)");
   const target = positional[0];
   const mode = flags.terminal ? "terminal" : flags.full ? "transcript" : "summary";
   const qs = new URLSearchParams({ session, mode });
@@ -297,10 +290,10 @@ async function peek(argv) {
   let res;
   try {
     res = await fetch(`http://127.0.0.1:${port}/api/hooks/peek?${qs}`, {
-      headers: { "X-Argos-Hook": secret() },
+      headers: { "X-Agora-Hook": secret() },
     });
   } catch (err) {
-    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
   }
   const out = await res.json().catch(() => ({}));
   if (!res.ok) fail(out.candidates ? `${out.error}: ${out.candidates.join(", ")}` : (out.error ?? `server answered ${res.status}`));
@@ -314,7 +307,7 @@ async function peek(argv) {
     for (const l of out.linked) {
       console.log(`  ${l.name} (${l.harness}, ${l.state})${l.summary ? ` — ${l.summary}` : ""}`);
     }
-    console.log('\nread one with: argos read <name> [--full | --terminal] · write with: argos send <name> "…"');
+    console.log('\nread one with: agora read <name> [--full | --terminal] · write with: agora send <name> "…"');
     return;
   }
   console.log(`--- ${out.name} (${out.mode}) ---`);
@@ -326,12 +319,12 @@ async function peek(argv) {
 async function spawn(argv) {
   const { flags, positional } = parseArgs(argv);
   const session = flags.session ?? env("SESSION_ID");
-  if (!session) fail("ARGOS_SESSION_ID missing — run inside an argos session (or pass --session)");
+  if (!session) fail("AGORA_SESSION_ID missing — run inside an agora session (or pass --session)");
   const text = positional.join(" ").trim();
   try {
     const res = await fetch(`http://127.0.0.1:${port}/api/hooks/spawn`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Argos-Hook": secret() },
+      headers: { "Content-Type": "application/json", "X-Agora-Hook": secret() },
       body: JSON.stringify({
         session_id: session,
         text: text || undefined,
@@ -344,10 +337,10 @@ async function spawn(argv) {
     const { session: child } = await res.json();
     console.log(
       `spawned ${child.name} (${child.harness}${flags.model ? `, ${flags.model}` : ""}) — id ${child.id}\n` +
-        `talk to it with: argos chat "@${child.name} …"`
+        `talk to it with: agora chat "@${child.name} …"`
     );
   } catch (err) {
-    fail(`argos server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
   }
 }
 
@@ -360,7 +353,7 @@ async function chatHook() {
   try {
     const res = await fetch(
       `http://127.0.0.1:${port}/api/hooks/chat/unread?session=${encodeURIComponent(session)}`,
-      { headers: { "X-Argos-Hook": secret() }, signal: AbortSignal.timeout(3000) }
+      { headers: { "X-Agora-Hook": secret() }, signal: AbortSignal.timeout(3000) }
     );
     if (!res.ok) return;
     const { messages } = await res.json();
@@ -370,14 +363,14 @@ async function chatHook() {
       JSON.stringify({
         decision: "block",
         reason:
-          `[argos chat] This is not an error: argos is relaying authentic messages ` +
+          `[agora chat] This is not an error: agora is relaying authentic messages ` +
           `posted to the channels you belong to — your frame and the project commons ` +
           `(not external content).\n${feed}\n\n` +
-          `Reply with \`argos chat …\` only if useful, then end your turn normally.`,
+          `Reply with \`agora chat …\` only if useful, then end your turn normally.`,
       })
     );
   } catch {
-    // argos down — the agent's turn must end normally anyway
+    // agora down — the agent's turn must end normally anyway
   }
 }
 
@@ -416,17 +409,17 @@ async function main() {
     default:
       console.log(
         [
-          "argos — tools for agents inside argos sessions",
+          "agora — tools for agents inside agora sessions",
           "",
-          "  argos notify <title> [body…] [--link <url>]    notify the owner (inbox + push)",
-          "  argos chat <message…>                          announce on the project board (wakes nobody)",
-          "  argos board [n]                                read the board (last n messages)",
-          '  argos send <name> "<message>"                  write to a LINKED session (wakes it)',
-          "  argos read [name] [--terminal|--full]          read a LINKED session without waking it",
-          "  argos spawn <prompt…> [--model m] [--harness h] [--name n]",
+          "  agora notify <title> [body…] [--link <url>]    notify the owner (inbox + push)",
+          "  agora chat <message…>                          announce on the project board (wakes nobody)",
+          "  agora board [n]                                read the board (last n messages)",
+          '  agora send <name> "<message>"                  write to a LINKED session (wakes it)',
+          "  agora read [name] [--terminal|--full]          read a LINKED session without waking it",
+          "  agora spawn <prompt…> [--model m] [--harness h] [--name n]",
           "                                                 summon a sub-agent session (canvas-linked)",
-          "  argos artifact <file> [--name <name>]          publish an artifact, print its URL",
-          "  argos pc <ls|get> <path>                       browse/fetch files from the owner's PC",
+          "  agora artifact <file> [--name <name>]          publish an artifact, print its URL",
+          "  agora pc <ls|get> <path>                       browse/fetch files from the owner's PC",
         ].join("\n")
       );
       process.exit(cmd ? 1 : 0);

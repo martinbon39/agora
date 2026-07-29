@@ -12,14 +12,14 @@ import {
 import Database from "better-sqlite3";
 import { config, env } from "./config.js";
 
-const SESSION_COOKIE = "orbit_session";
+const SESSION_COOKIE = "agora_session";
 const SESSION_TTL_MS = 30 * 24 * 3600 * 1000;
 const ENROLL_TTL_MS = 15 * 60 * 1000;
 
 // ---- identity ------------------------------------------------------------
-// argos historically had exactly one human (anonymous "the owner is in"
+// agora historically had exactly one human (anonymous "the owner is in"
 // sessions). Multiplayer attaches an identity to each session: the owner
-// (passkey or ARGOS_ALLOWED_EMAIL via Google) or an invited guest (Google
+// (passkey or AGORA_ALLOWED_EMAIL via Google) or an invited guest (Google
 // account on the invites allowlist).
 
 export type AuthRole = "owner" | "guest";
@@ -66,12 +66,12 @@ export function colorForEmail(email: string): string {
   return USER_COLORS[h % USER_COLORS.length];
 }
 
-/** Origin argos is served from, e.g. https://argos.example.com */
+/** Origin agora is served from, e.g. https://agora.example.com */
 export function expectedOrigin(): string {
   return env("ORIGIN") ?? `http://localhost:${config.port}`;
 }
 
-/** Every origin argos answers on: ARGOS_ORIGIN plus ARGOS_EXTRA_ORIGINS (comma-separated). */
+/** Every origin agora answers on: AGORA_ORIGIN plus AGORA_EXTRA_ORIGINS (comma-separated). */
 export function allowedOrigins(): string[] {
   const extra = (env("EXTRA_ORIGINS") ?? "")
     .split(",")
@@ -275,7 +275,7 @@ function issueSession(
  * Global gate. Public: auth endpoints and the SPA's static assets (the login
  * screen itself). Everything else — /api and /ws — needs a session cookie.
  * Claude Code hooks POST with a secret header instead of a cookie; the secret
- * persists on disk so hook settings survive argos restarts.
+ * persists on disk so hook settings survive agora restarts.
  */
 let hookSecretCache: string | null = null;
 export function hookSecret(): string {
@@ -323,13 +323,7 @@ export function requireAuth(app: FastifyInstance) {
     if (url.startsWith("/api/auth/")) return;
     if (url === "/api/version") return; // build hash — harmless, needed pre-reload
     if (url.startsWith("/ws/bridge")) return; // token-checked in its own handler
-    // x-orbit-hook kept alongside: running sessions carry pre-rename hook
-    // settings files whose curl commands still send the old header
-    if (
-      url.startsWith("/api/hooks/") &&
-      (req.headers["x-argos-hook"] === hookSecret() ||
-        req.headers["x-orbit-hook"] === hookSecret())
-    )
+    if (url.startsWith("/api/hooks/") && req.headers["x-agora-hook"] === hookSecret())
       return;
     // CSRF hardening: content in sandboxed/proxied iframes (opaque origin) and
     // third-party pages report Sec-Fetch-Site: cross-site — they must never
@@ -376,10 +370,10 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: "invalid or expired enrollment token" });
     }
     const options = await generateRegistrationOptions({
-      rpName: "argos",
+      rpName: "agora",
       rpID: rpID(),
       userName: "owner",
-      userDisplayName: "argos owner",
+      userDisplayName: "agora owner",
       authenticatorSelection: {
         residentKey: "required",
         userVerification: "preferred",

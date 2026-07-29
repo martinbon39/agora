@@ -10,7 +10,7 @@ import { chromium } from "playwright";
 
 const BASE = "http://localhost:5173";
 const SESSION = {
-  id: "s1", name: "proof", project_path: "/home/orbit", harness: "shell",
+  id: "s1", name: "proof", project_path: "/home/agora", harness: "shell",
   command: "bash", status: "running", agent_state: "idle",
   created_at: Date.now(), last_activity: Date.now(),
 };

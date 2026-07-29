@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { InboxIcon, ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
-import type { ArgosNotification } from "@/api";
+import type { AgoraNotification } from "@/api";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 
@@ -15,14 +15,14 @@ function timeAgo(ts: number) {
   return `${Math.floor(s / 86400)} d ago`;
 }
 
-/** Inbox for agent messages (`argos notify`): bell + panel in the top bar. */
+/** Inbox for agent messages (`agora notify`): bell + panel in the top bar. */
 export function Inbox({
   notifications,
   unread,
   onMarkRead,
   onOpenSession,
 }: {
-  notifications: ArgosNotification[];
+  notifications: AgoraNotification[];
   unread: number;
   onMarkRead: () => void;
   onOpenSession: (id: string) => void;
@@ -75,7 +75,7 @@ export function Inbox({
               {notifications.length === 0 && (
                 <p className="px-3 py-6 text-center text-xs text-muted-foreground">
                   No messages — agents write here via{" "}
-                  <code className="font-mono">argos notify</code>.
+                  <code className="font-mono">agora notify</code>.
                 </p>
               )}
               {notifications.map((n) => {

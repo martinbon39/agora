@@ -1,13 +1,13 @@
 <div align="center">
 
-# argos
+# agora
 
 **A self-hosted cockpit for Claude Code and other CLI coding agents.**
 
-Your agents run on your server, in real tmux sessions. argos gives you a
+Your agents run on your server, in real tmux sessions. agora gives you a
 browser window onto them — from your desk, or from your phone on a train.
 
-[![CI](https://github.com/martinbon39/argos/actions/workflows/ci.yml/badge.svg)](https://github.com/martinbon39/argos/actions/workflows/ci.yml)
+[![CI](https://github.com/martinbon39/agora/actions/workflows/ci.yml/badge.svg)](https://github.com/martinbon39/agora/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
 ![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-linux-lightgrey)
@@ -22,7 +22,7 @@ Coding agents are long-running. You start one, it works for twenty minutes, and
 you want to look in on it — but the laptop is closed, the SSH session is gone,
 and the agent went with it.
 
-argos moves the agent off your laptop. Every session is a detached tmux session
+agora moves the agent off your laptop. Every session is a detached tmux session
 on your own server; the browser is only a viewer. Close the tab, restart the
 server, walk away for a day — the agent keeps going and the terminal is exactly
 where you left it when you come back. Nothing is kept in the page, so nothing is
@@ -37,7 +37,7 @@ lost when the page dies.
   viewers and live web previews on one spatial workspace instead of a stack of
   tabs. It persists.
 - **Sessions that outlive everything.** Browser disconnects, server restarts and
-  deploys don't touch the agents. `KillMode=process` means even restarting argos
+  deploys don't touch the agents. `KillMode=process` means even restarting agora
   leaves tmux alone.
 - **Agent status at a glance.** Claude Code hooks report each session as working,
   idle, or waiting for approval, so you can see which agent is stuck on a
@@ -73,8 +73,8 @@ aren't supported (WSL is fine).
 
 ```sh
 sudo apt install tmux build-essential   # node-pty + better-sqlite3 compile
-git clone https://github.com/martinbon39/argos.git
-cd argos
+git clone https://github.com/martinbon39/agora.git
+cd agora
 npm install
 
 npm run dev:server    # API + WebSockets on :4560
@@ -96,53 +96,53 @@ Open the link, register a passkey, and you're the owner.
 On a fresh Ubuntu server, as root:
 
 ```sh
-git clone https://github.com/martinbon39/argos.git
-cd argos
-bash deploy/provision.sh argos.example.com https://github.com/martinbon39/argos.git
+git clone https://github.com/martinbon39/agora.git
+cd agora
+bash deploy/provision.sh agora.example.com https://github.com/martinbon39/agora.git
 ```
 
-That installs Node, tmux, Caddy and Claude Code, creates an unprivileged `argos`
+That installs Node, tmux, Caddy and Claude Code, creates an unprivileged `agora`
 user, sets up the firewall, writes a systemd unit and a Caddy vhost with
 automatic TLS, and builds the app. Point your domain's A record at the box, then:
 
 ```sh
-sudo -u argos argosctl enroll
+sudo -u agora agoractl enroll
 ```
 
 Two things to get right:
 
-- **`ARGOS_ORIGIN` must be your public URL.** Passkeys are bound to that
+- **`AGORA_ORIGIN` must be your public URL.** Passkeys are bound to that
   hostname. A wrong or missing value doesn't crash anything — logins just never
   succeed. `provision.sh` writes it into the unit for you.
-- **Keep argos on the loopback** and let Caddy face the internet. That is the
+- **Keep agora on the loopback** and let Caddy face the internet. That is the
   shipped default.
 
 Prefer to run it yourself? `npm run build && npm start`, plus a reverse proxy.
-`deploy/argosctl start|stop|restart|logs` is a pidfile-based alternative to
+`deploy/agoractl start|stop|restart|logs` is a pidfile-based alternative to
 systemd.
 
-Read [SECURITY.md](SECURITY.md) before exposing it. argos gives a browser a
+Read [SECURITY.md](SECURITY.md) before exposing it. agora gives a browser a
 shell on your server; the login is the only thing between the internet and your
 machine.
 
 ## Configuration
 
-Everything is optional — argos boots with no configuration at all and serves
-`http://localhost:4560`. Every variable also accepts a legacy `ORBIT_` prefix.
+Everything is optional — agora boots with no configuration at all and serves
+`http://localhost:4560`. Every variable also accepts a legacy `AGORA_` prefix.
 Full annotated list in [`.env.example`](.env.example).
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `ARGOS_ORIGIN` | `http://localhost:<port>` | Public URL. **Required in production** — passkeys bind to its hostname. |
-| `ARGOS_HOST` | `127.0.0.1` | Bind address. |
-| `ARGOS_PORT` | `4560` | Port. |
-| `ARGOS_DATA_DIR` | `~/.orbit` | Database, session logs, uploads, generated secrets. |
-| `ARGOS_PROJECTS_DIR` | `~/projects` | Where your code lives; sessions and the file explorer are confined here. |
-| `ARGOS_TMUX_SOCKET` | `orbit` | Dedicated `tmux -L` socket. Changing it on a live install orphans running sessions. |
-| `ARGOS_EXTRA_ORIGINS` | — | Additional origins, comma-separated. For domain migrations. |
-| `ARGOS_ALLOWED_EMAIL` | — | Google address that gets owner rights. |
-| `ARGOS_OWNER_NAME` | from the email | Display name on cursors and messages. |
-| `ARGOS_GOOGLE_CLIENT_ID` / `_SECRET` | — | Enables Google sign-in and guest invites. |
+| `AGORA_ORIGIN` | `http://localhost:<port>` | Public URL. **Required in production** — passkeys bind to its hostname. |
+| `AGORA_HOST` | `127.0.0.1` | Bind address. |
+| `AGORA_PORT` | `4560` | Port. |
+| `AGORA_DATA_DIR` | `~/.agora` | Database, session logs, uploads, generated secrets. |
+| `AGORA_PROJECTS_DIR` | `~/projects` | Where your code lives; sessions and the file explorer are confined here. |
+| `AGORA_TMUX_SOCKET` | `agora` | Dedicated `tmux -L` socket. Changing it on a live install orphans running sessions. |
+| `AGORA_EXTRA_ORIGINS` | — | Additional origins, comma-separated. For domain migrations. |
+| `AGORA_ALLOWED_EMAIL` | — | Google address that gets owner rights. |
+| `AGORA_OWNER_NAME` | from the email | Display name on cursors and messages. |
+| `AGORA_GOOGLE_CLIENT_ID` / `_SECRET` | — | Enables Google sign-in and guest invites. |
 | `GROQ_API_KEY` | — | Enables dictation. Also readable from `<data-dir>/groq.key`. |
 
 The hook secret, PC-bridge token and web-push VAPID keys are generated on first
@@ -151,11 +151,11 @@ run under the data directory. There is nothing to paste in.
 ## Who can get in
 
 **Passkeys** are the primary path and need no third-party account. Credentials
-are only created from a one-shot, 15-minute token printed by `argosctl enroll`,
+are only created from a one-shot, 15-minute token printed by `agoractl enroll`,
 which writes directly to SQLite and is therefore only reachable by someone with
 shell access to the server. No HTTP route can bootstrap an owner.
 
-**Google sign-in** is optional and is strictly an allowlist. `ARGOS_ALLOWED_EMAIL`
+**Google sign-in** is optional and is strictly an allowlist. `AGORA_ALLOWED_EMAIL`
 becomes the owner, addresses you invite become guests, and everyone else is
 refused. It's what makes invites possible, since a guest has no shell on your box.
 
@@ -176,7 +176,7 @@ browser ──ws──► fastify ──► node-pty ──► tmux attach ─�
 | --- | --- |
 | `server/` | Fastify, WebSockets, node-pty, better-sqlite3. Routes in `src/routes/`, auth in `src/auth.ts`, tmux in `src/tmux.ts`. |
 | `web/` | Vite, React, xterm.js, React Flow. Canvas and node types in `src/canvas/`. |
-| `cli/argos` | The in-session CLI agents call: `chat`, `spawn`, `notify`, `artifact`, `pc`. |
+| `cli/agora` | The in-session CLI agents call: `chat`, `spawn`, `notify`, `artifact`, `pc`. |
 | `deploy/` | Provisioning, systemd unit, Caddyfile, and the `gate-*.mjs` smoke tests. |
 
 One process serves the API, the WebSockets and the built SPA. State lives in
@@ -185,16 +185,16 @@ mid-session without anyone noticing.
 
 ### The agent-facing CLI
 
-Sessions get an `argos` command on their PATH, authenticated by the hook secret:
+Sessions get an `agora` command on their PATH, authenticated by the hook secret:
 
 ```sh
-argos chat "renaming the canvas merge helper — heads up @other-session"
-argos spawn "review the diff on branch x" --model sonnet   # a sibling session
-argos notify "tests are green" --link https://…            # push to your phone
-argos artifact report.html                                 # publish + get a URL
-argos board                                                # what others announced
-argos read hecate                                          # see what it is doing
-argos send hecate "does your change touch mergeDoc?"       # write into its terminal
+agora chat "renaming the canvas merge helper — heads up @other-session"
+agora spawn "review the diff on branch x" --model sonnet   # a sibling session
+agora notify "tests are green" --link https://…            # push to your phone
+agora artifact report.html                                 # publish + get a URL
+agora board                                                # what others announced
+agora read hecate                                          # see what it is doing
+agora send hecate "does your change touch mergeDoc?"       # write into its terminal
 ```
 
 ### How agents relate
@@ -202,13 +202,13 @@ argos send hecate "does your change touch mergeDoc?"       # write into its term
 They do not share a conversation. Each one is its own process with its own
 context, and everything between them is deliberately narrow:
 
-- `argos chat "…"` posts to the **project board** — an announcement that
-  interrupts nobody. `argos board` reads it. Pushing these into every terminal
+- `agora chat "…"` posts to the **project board** — an announcement that
+  interrupts nobody. `agora board` reads it. Pushing these into every terminal
   is what turns a project running five agents into one derailed conversation.
 - **Link two terminals** (Link tool in the dock, or `L`) and their agents can
-  deal with each other. The link grants both halves: `argos read <name>` sees
+  deal with each other. The link grants both halves: `agora read <name>` sees
   what the other is doing — its recent turns, or `--terminal` for its live pane
-  — without waking it, and `argos send <name> "…"` writes into its terminal at
+  — without waking it, and `agora send <name> "…"` writes into its terminal at
   the cost of a turn. Read before you send. The graph is the permission, and it
   never chains, so a hub does not open everything.
 
@@ -229,19 +229,19 @@ browser and are run by hand; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## FAQ
 
-**Why does everything say `orbit` under the hood?**
+**Why does everything say `agora` under the hood?**
 That was the project's name until July 2026. The tmux socket, the data
 directory, the SQLite filename and the session cookie still use it on purpose:
 renaming them would orphan every live session and log everyone out. Environment
 variables accept both prefixes. It's compatibility debt, deliberately kept.
 
 **Why tmux instead of managing ptys directly?**
-Because then the agent's life would depend on the argos process staying up. With
-tmux, argos is just a viewer that can be restarted, redeployed or crash without
+Because then the agent's life would depend on the agora process staying up. With
+tmux, agora is just a viewer that can be restarted, redeployed or crash without
 the agent noticing.
 
 **Is this multi-tenant?**
-No. argos hosts one owner plus the guests they invite. Guest scoping is a real
+No. agora hosts one owner plus the guests they invite. Guest scoping is a real
 boundary and it's tested, but it isn't isolation between untrusted strangers —
 don't run this as a shared service.
 
@@ -252,7 +252,7 @@ approval) are Claude Code specific, since they come from its hooks.
 
 **Does it sandbox the agents?**
 No, and that's the point — they need to do real work in your repos. Agents can do
-anything the argos Unix user can. Give that user only what it should have.
+anything the agora Unix user can. Give that user only what it should have.
 
 ## Contributing
 
@@ -264,5 +264,5 @@ an issue first.
 
 [MIT](LICENSE) © Martin Bonan
 
-Named for Argos Panoptes, the herdsman of a hundred eyes — half of them awake
+Named for Agora Panoptes, the herdsman of a hundred eyes — half of them awake
 while the others slept.

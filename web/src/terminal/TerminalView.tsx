@@ -158,7 +158,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
         if (pasteable) sendInputRef.current("\x16");
         else sendInputRef.current(`${path} `);
       } catch {
-        term.write(`\r\n\x1b[31m[argos] upload failed: ${name}\x1b[0m\r\n`);
+        term.write(`\r\n\x1b[31m[agora] upload failed: ${name}\x1b[0m\r\n`);
       }
     };
     uploadRef.current = uploadBlob;
@@ -340,12 +340,12 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
       ws.onclose = (ev) => {
         if (disposed) return;
         if (ev.code === 4404) {
-          term.write("\r\n\x1b[31m[argos] session not found\x1b[0m\r\n");
+          term.write("\r\n\x1b[31m[agora] session not found\x1b[0m\r\n");
           onCloseRef.current?.();
           return;
         }
         const delay = Math.min(500 * 2 ** retry++, 8000);
-        term.write(`\r\n\x1b[33m[argos] disconnected — reconnecting in ${delay}ms\x1b[0m\r\n`);
+        term.write(`\r\n\x1b[33m[agora] disconnected — reconnecting in ${delay}ms\x1b[0m\r\n`);
         setTimeout(connect, delay);
       };
     };

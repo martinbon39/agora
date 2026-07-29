@@ -145,7 +145,7 @@ export function Composer({
     };
   }, [selected?.path]);
 
-  /** argos cannot do the OAuth dance: it prepares an isolated config dir and
+  /** agora cannot do the OAuth dance: it prepares an isolated config dir and
    *  opens a terminal pointed at it, where `claude` runs the real login. */
   const addAccount = async () => {
     const label = window.prompt(

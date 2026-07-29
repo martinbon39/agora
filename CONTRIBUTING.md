@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for looking. argos is a personal project run in the open: it is shaped
+Thanks for looking. agora is a personal project run in the open: it is shaped
 around one person's daily use, so a feature that doesn't fit that workflow may
 be declined even when it's well built. Opening an issue before a large pull
 request will save you time.
@@ -20,7 +20,7 @@ npm run dev:server                      # :4560
 npm run dev:web                         # :5173, proxies to the server
 ```
 
-State lands in `~/.orbit` by default; set `ARGOS_DATA_DIR` to keep a
+State lands in `~/.agora` by default; set `AGORA_DATA_DIR` to keep a
 development instance away from a real one. See `.env.example` for the full set
 of variables.
 
@@ -73,11 +73,11 @@ merge, a gate case is expected rather than optional.
 
 ## Things worth knowing
 
-- **`orbit` is argos's former name.** The tmux socket (`-L orbit`), the data
-  directory (`~/.orbit`), the SQLite filename and the session cookie still use
+- **`agora` is agora's former name.** The tmux socket (`-L agora`), the data
+  directory (`~/.agora`), the SQLite filename and the session cookie still use
   it on purpose: renaming them would orphan live sessions and log everyone out.
-  Environment variables accept both `ARGOS_` and `ORBIT_` prefixes. New code
-  should say `argos`; don't "clean up" the compatibility names.
+  Environment variables accept both `AGORA_` and `AGORA_` prefixes. New code
+  should say `agora`; don't "clean up" the compatibility names.
 - Sessions must survive a server restart. Anything holding state in the server
   process rather than in tmux or SQLite will break that, which is the property
   the whole design exists to protect.

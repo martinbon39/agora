@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvasApi } from "../context";
 
-const HIGH_KEY = "orbit.snake.high";
+const HIGH_KEY = "agora.snake.high";
 const CELL = 18;
 
 /** Snake, canvas-node edition. Arrows/WASD; the grid adapts to the node size;

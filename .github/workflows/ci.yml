@@ -31,17 +31,17 @@ jobs:
         run: npm run build
 
       # gate-canvas / gate-chat / gate-scope are hermetic — fastify.inject
-      # against the real routes, in a throwaway ARGOS_DATA_DIR
+      # against the real routes, in a throwaway AGORA_DATA_DIR
       - name: Gates
         run: npm test
 
-      # cli/argos is a node script despite having no extension — checking it
+      # cli/agora is a node script despite having no extension — checking it
       # with bash -n fails on the first comment line
       - name: Check scripts parse
         run: |
-          for f in deploy/provision.sh deploy/sync.sh deploy/argosctl deploy/xclip; do
+          for f in deploy/provision.sh deploy/sync.sh deploy/agoractl deploy/xclip; do
             bash -n "$f"
           done
-          for f in cli/argos deploy/gate-mobile-ime.mjs deploy/gate-paste.mjs; do
+          for f in cli/agora deploy/gate-mobile-ime.mjs deploy/gate-paste.mjs; do
             node --check "$f"
           done

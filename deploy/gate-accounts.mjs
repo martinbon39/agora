@@ -17,9 +17,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "argos-accounts-"));
-process.env.ARGOS_DATA_DIR = path.join(tmp, "data");
-process.env.ARGOS_PROJECTS_DIR = path.join(tmp, "projects");
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agora-accounts-"));
+process.env.AGORA_DATA_DIR = path.join(tmp, "data");
+process.env.AGORA_PROJECTS_DIR = path.join(tmp, "projects");
 
 // a stand-in for the user's real ~/.claude, so the gate never reads or writes it
 const HOME_CLAUDE = path.join(tmp, "home-claude");
@@ -116,7 +116,7 @@ check(
 check(
   "a project with no setting resolves to null — the default account",
   accounts.configDirFor(projectSettings.account(PROJ_B)) === null,
-  "so argos leaves CLAUDE_CONFIG_DIR unset and Claude uses ~/.claude"
+  "so agora leaves CLAUDE_CONFIG_DIR unset and Claude uses ~/.claude"
 );
 check(
   "an account that no longer exists falls back to the default, not to a broken dir",

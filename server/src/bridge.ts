@@ -8,10 +8,10 @@ import { config } from "./config.js";
 import { uploadsDir } from "./routes/uploads.js";
 
 /**
- * PC bridge: Martin's machine runs deploy/orbit-bridge.mjs, which opens an
- * OUTBOUND WebSocket to argos (no port to open at home). Agents on the VPS can
- * then list/fetch files from the PC via `argos pc ls|get` -> /api/hooks/pc.
- * Fetched files land in ~/.orbit/uploads/pc/ so agents read them locally.
+ * PC bridge: Martin's machine runs deploy/agora-bridge.mjs, which opens an
+ * OUTBOUND WebSocket to agora (no port to open at home). Agents on the VPS can
+ * then list/fetch files from the PC via `agora pc ls|get` -> /api/hooks/pc.
+ * Fetched files land in ~/.agora/uploads/pc/ so agents read them locally.
  */
 
 let secretCache: string | null = null;
@@ -108,7 +108,7 @@ export async function bridgeRoutes(app: FastifyInstance) {
     if (!bridge) {
       return reply
         .code(503)
-        .send({ error: "PC bridge not connected — run argos-bridge on the PC" });
+        .send({ error: "PC bridge not connected — run agora-bridge on the PC" });
     }
     if ((op !== "ls" && op !== "get") || !pcPath) {
       return reply.code(400).send({ error: "expected { op: ls|get, path }" });

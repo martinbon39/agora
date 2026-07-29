@@ -4,7 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { config } from "../config.js";
 
 /** Groq Whisper transcription for canvas dictation. The key lives OUTSIDE the
- *  repo: GROQ_API_KEY env var, or ~/.orbit/groq.key (chmod 600). */
+ *  repo: GROQ_API_KEY env var, or ~/.agora/groq.key (chmod 600). */
 function groqKey(): string | null {
   if (process.env.GROQ_API_KEY) return process.env.GROQ_API_KEY;
   try {

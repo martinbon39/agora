@@ -59,7 +59,7 @@ export const TodoNode = memo(function TodoNode({ id, data, selected }: NodeProps
               onDragStart={(e) => {
                 // drop it on a terminal node to dispatch the task to that agent
                 e.dataTransfer.setData(
-                  "application/x-argos-todo",
+                  "application/x-agora-todo",
                   JSON.stringify({ nodeId: id, index: i, text: item.t })
                 );
                 e.dataTransfer.effectAllowed = "copy";

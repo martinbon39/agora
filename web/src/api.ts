@@ -12,7 +12,7 @@ export interface Session {
   pinned?: number;
   total_cost?: number;
   last_summary?: string | null;
-  /** Session that spawned this one via `argos spawn` (canvas edge). */
+  /** Session that spawned this one via `agora spawn` (canvas edge). */
   parent_id?: string | null;
 }
 
@@ -44,7 +44,7 @@ export interface Project {
   dirty: boolean;
 }
 
-/** Per-project agent chat message (agents post via `argos chat`). */
+/** Per-project agent chat message (agents post via `agora chat`). */
 export interface ChatMessage {
   id: number;
   project_path: string;
@@ -52,7 +52,7 @@ export interface ChatMessage {
   harness: string;
   body: string;
   created_at: number;
-  /** Set when this was addressed to one session (`argos ask`). */
+  /** Set when this was addressed to one session (`agora ask`). */
   to_session?: string | null;
   to_name?: string | null;
 }
@@ -84,8 +84,8 @@ export interface PresencePeer {
   focus: string | null;
 }
 
-/** Message sent by an agent via `argos notify` (inbox + push). */
-export interface ArgosNotification {
+/** Message sent by an agent via `agora notify` (inbox + push). */
+export interface AgoraNotification {
   id: number;
   session_id: string | null;
   title: string;
@@ -273,7 +273,7 @@ export const api = {
     }).then((r) => json<{ ok: true; account: string | null }>(r)),
   listNotifications: () =>
     fetch("/api/notifications").then((r) =>
-      json<{ notifications: ArgosNotification[]; unread: number }>(r)
+      json<{ notifications: AgoraNotification[]; unread: number }>(r)
     ),
   markNotificationsRead: () =>
     fetch("/api/notifications/read", { method: "POST" }).then((r) => json<{ ok: true }>(r)),

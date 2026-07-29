@@ -34,7 +34,7 @@ async function main() {
   const db = initDb();
   initAuthDb(db);
   initPush(db);
-  hookSecret(); // ensure the secret exists so the `argos` CLI works from turn one
+  hookSecret(); // ensure the secret exists so the `agora` CLI works from turn one
   bridgeSecret(); // same for the PC bridge token (Martin copies it to his machine)
   await ensureTmuxServer();
 

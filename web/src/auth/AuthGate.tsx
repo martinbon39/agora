@@ -126,7 +126,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       >
         <Logo className="size-12 text-foreground" />
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">argos</h1>
+          <h1 className="text-lg font-semibold tracking-tight">agora</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             {enrollToken
               ? "Register a passkey for this device."
@@ -162,7 +162,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
             </Button>
           ) : !google ? (
             <p className="text-xs text-muted-foreground">
-              On the server: <code className="rounded bg-muted px-1.5 py-0.5">argosctl enroll</code>{" "}
+              On the server: <code className="rounded bg-muted px-1.5 py-0.5">agoractl enroll</code>{" "}
               then open the generated link.
             </p>
           ) : null}

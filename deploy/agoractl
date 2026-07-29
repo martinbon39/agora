@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# argos control: start/stop/restart via pidfile (dev), enroll passkey tokens.
-# On a systemd deploy, prefer `systemctl restart argos` and keep only enroll.
+# agora control: start/stop/restart via pidfile (dev), enroll passkey tokens.
+# On a systemd deploy, prefer `systemctl restart agora` and keep only enroll.
 set -u
-APP_DIR="${ARGOS_APP_DIR:-${ORBIT_APP_DIR:-$HOME/apps/argos}}"
-PIDFILE="$HOME/argos-server.pid"
-LOG="$HOME/argos-server.log"
+APP_DIR="${AGORA_APP_DIR:-$HOME/apps/agora}"
+PIDFILE="$HOME/agora-server.pid"
+LOG="$HOME/agora-server.log"
 
-# server-local config (ARGOS_ORIGIN, google oauth…) — plain KEY=VALUE lines.
-# Must be the same file argos.service names in EnvironmentFile, i.e. inside the
-# data dir (~/.orbit by default), or systemd and this script disagree.
-ENV_FILE="${ARGOS_ENV_FILE:-${ARGOS_DATA_DIR:-$HOME/.orbit}/env}"
+# server-local config (AGORA_ORIGIN, google oauth…) — plain KEY=VALUE lines.
+# Must be the same file agora.service names in EnvironmentFile, i.e. inside the
+# data dir (~/.agora by default), or systemd and this script disagree.
+ENV_FILE="${AGORA_ENV_FILE:-${AGORA_DATA_DIR:-$HOME/.agora}/env}"
 if [ -f "$ENV_FILE" ]; then
   set -a
   . "$ENV_FILE"
@@ -37,5 +37,5 @@ case "${1:-}" in
   logs)
     tail -f "$LOG"
     ;;
-  *) echo "usage: argosctl start|stop|restart|enroll|logs"; exit 1;;
+  *) echo "usage: agoractl start|stop|restart|enroll|logs"; exit 1;;
 esac

@@ -35,7 +35,7 @@ export function initPush(database: Database.Database) {
     );
   `);
   const keys = vapidKeys();
-  webpush.setVapidDetails(`mailto:argos@${new URL(expectedOrigin()).hostname}`, keys.publicKey, keys.privateKey);
+  webpush.setVapidDetails(`mailto:agora@${new URL(expectedOrigin()).hostname}`, keys.publicKey, keys.privateKey);
 }
 
 export async function pushRoutes(app: FastifyInstance) {

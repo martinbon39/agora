@@ -70,7 +70,7 @@ export async function accountRoutes(app: FastifyInstance) {
     }
   );
 
-  /** Sign an account in. argos cannot do the OAuth dance for you, so it opens a
+  /** Sign an account in. agora cannot do the OAuth dance for you, so it opens a
    *  terminal already pointed at that account's config dir — `claude` there
    *  starts the login flow, and the tokens land in the right place. */
   app.post<{ Params: { id: string } }>("/api/accounts/:id/login", async (req, reply) => {

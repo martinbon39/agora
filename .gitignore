@@ -14,6 +14,6 @@ data/
 coverage/
 web/package-lock.json
 
-# scratch artifacts published via `orbit artifact` / ~/.orbit/artifacts
+# scratch artifacts published via `agora artifact` / ~/.agora/artifacts
 artifacts/
 *.tsbuildinfo

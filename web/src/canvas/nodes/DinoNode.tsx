@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvasApi } from "../context";
 
-const HIGH_KEY = "orbit.dino.high";
+const HIGH_KEY = "agora.dino.high";
 
 interface Cactus {
   x: number;
@@ -12,7 +12,7 @@ interface Cactus {
   h: number;
 }
 
-/** Chrome-dino-style runner, written from scratch for orbit. Space / tap to
+/** Chrome-dino-style runner, written from scratch for agora. Space / tap to
  *  jump; the high score survives across nodes via localStorage. */
 export const DinoNode = memo(function DinoNode({ id, selected }: NodeProps) {
   const ctx = useCanvasApi();

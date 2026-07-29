@@ -17,8 +17,8 @@
 // woken agents.
 import { chatTargets, injectableNow } from "../server/dist/routes/chat.js";
 
-const P = "/home/orbit/projects/orbit";
-const OTHER = "/home/orbit/projects/other";
+const P = "/home/agora/projects/agora";
+const OTHER = "/home/agora/projects/other";
 const results = [];
 const check = (name, ok, detail = "") => {
   results.push({ name, ok });
@@ -37,7 +37,7 @@ const s = (over) => ({
 });
 
 const FLEET = [
-  s({ id: "a", name: "argos" }),
+  s({ id: "a", name: "agora" }),
   s({ id: "b", name: "daedalus" }),
   s({ id: "c", name: "talos", status: "exited" }),
   s({ id: "d", name: "pythia", archived_at: 123 }),
@@ -50,13 +50,13 @@ const route = (over) => chatTargets(FLEET, { project: P, fromUser: false, body: 
 // The regression itself.
 check(
   "an owner message with no @ reaches every live agent in the project",
-  String(names(route({ fromUser: true, body: "how is it going?" }))) === "argos,daedalus",
+  String(names(route({ fromUser: true, body: "how is it going?" }))) === "agora,daedalus",
   "this is THE bug: without it, an idle agent never hears it"
 );
 
 check(
   "an owner message skips the agent posting on their behalf",
-  String(names(route({ fromUser: true, body: "hello", authorSessionId: "b" }))) === "argos"
+  String(names(route({ fromUser: true, body: "hello", authorSessionId: "b" }))) === "agora"
 );
 
 // --- The project board interrupts NOBODY -----------------------------------
@@ -74,12 +74,12 @@ check(
   "this is THE derail: five agents on two tasks became one conversation"
 );
 check(
-  "not even by naming someone — that is what `argos ask` is for",
+  "not even by naming someone — that is what `agora ask` is for",
   route({ body: "@argo can you review?" }).length === 0
 );
 check(
   "the owner is the exception: his board message still reaches the fleet",
-  String(names(route({ fromUser: true, body: "stop everything" }))) === "argos,daedalus",
+  String(names(route({ fromUser: true, body: "stop everything" }))) === "agora,daedalus",
   "he is the human talking to his own agents, and he writes rarely"
 );
 
@@ -112,7 +112,7 @@ check(
   !injectableNow(s({ agent_state: "needs_approval" }))
 );
 
-// --- `argos ask <name>`: the deliberate interrupt ---------------------------
+// --- `agora ask <name>`: the deliberate interrupt ---------------------------
 // The only way an agent reaches another. It takes a name rather than a mention
 // buried in prose, because interrupting someone should be a decision.
 check(
@@ -121,7 +121,7 @@ check(
 );
 check(
   "ask never sprays: mentions in the body must not widen it",
-  route({ toSession: "b", body: "@all @argos everyone look" }).length === 1
+  route({ toSession: "b", body: "@all @agora everyone look" }).length === 1
 );
 check("ask cannot wake a dead or archived session", route({ toSession: "c" }).length === 0);
 check(

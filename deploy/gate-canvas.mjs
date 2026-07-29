@@ -11,8 +11,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-// isolated data dir: the gate must never touch the live orbit.db
-process.env.ARGOS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "argos-gate-"));
+// isolated data dir: the gate must never touch the live agora.db
+process.env.AGORA_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "agora-gate-"));
 const { initDb } = await import("../server/dist/db.js");
 initDb();
 const { canvasRoutes } = await import("../server/dist/routes/canvas.js");

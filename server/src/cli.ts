@@ -1,4 +1,4 @@
-// argos admin CLI — runs on the server, talks to the DB directly (never HTTP).
+// agora admin CLI — runs on the server, talks to the DB directly (never HTTP).
 // Usage: node dist/cli.js enroll
 import { initDb } from "./db.js";
 import { initAuthDb, createEnrollToken, expectedOrigin } from "./auth.js";

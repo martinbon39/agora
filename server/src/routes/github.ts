@@ -6,7 +6,7 @@ const exec = promisify(execFile);
 
 /**
  * GitHub via the `gh` CLI: Martin authenticates once with `gh auth login`
- * inside an argos terminal session, then argos can list and clone his repos.
+ * inside an agora terminal session, then agora can list and clone his repos.
  */
 export async function githubRoutes(app: FastifyInstance) {
   app.get("/api/github/repos", async (_req, reply) => {

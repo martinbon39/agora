@@ -83,7 +83,7 @@ function pickMythName(): string {
   return `${base}-${i}`;
 }
 
-/** Create + start a session. Shared by the dashboard route and `argos spawn`
+/** Create + start a session. Shared by the dashboard route and `agora spawn`
  *  (agents summoning sub-agents; parentId draws the canvas edge). */
 export async function spawnSession(opts: {
   /** The REPO — the session's identity (chat, canvas, guest scope). */
@@ -105,7 +105,7 @@ export async function spawnSession(opts: {
   if (!command) throw new Error(`unknown harness '${opts.harness}' and no command given`);
   const id = nanoid(10);
   const name = opts.name?.trim() || pickMythName();
-  // Which Claude account this terminal signs in as. Per project, so `argos
+  // Which Claude account this terminal signs in as. Per project, so `agora
   // spawn` and forks inherit it without anyone having to think about it.
   const configDir =
     opts.accountConfigDir !== undefined
@@ -127,23 +127,23 @@ export async function spawnSession(opts: {
     // Three tiers, and the reason for them, because an agent that treats every
     // channel as broadcast is exactly what made a busy project unusable.
     const fleetRules =
-      `You are the session "${name}" of the argos fleet on this project. Fleet rules: ` +
+      `You are the session "${name}" of the agora fleet on this project. Fleet rules: ` +
       `(1) nothing you type in your reply is seen by anyone — talking to the fleet means ` +
       `RUNNING a shell command; ` +
       `(2) you speak only in your own name (${name}), never on behalf of another session; ` +
-      `(3) \`argos chat "…"\` posts to the project BOARD, which interrupts NOBODY — it is an ` +
-      `announcement, and an @ in it delivers nothing. \`argos board\` reads it: do that before ` +
+      `(3) \`agora chat "…"\` posts to the project BOARD, which interrupts NOBODY — it is an ` +
+      `announcement, and an @ in it delivers nothing. \`agora board\` reads it: do that before ` +
       `touching shared files, because nobody will push it to you; ` +
       `(4) a LINK drawn between two terminals on the canvas is what lets their agents deal with ` +
-      `each other, and it grants both halves: \`argos read <name>\` sees what they are doing without ` +
-      `interrupting them, \`argos send <name> "…"\` writes into their terminal and costs them a turn. ` +
-      `\`argos read\` with no name lists who you are linked to; ` +
+      `each other, and it grants both halves: \`agora read <name>\` sees what they are doing without ` +
+      `interrupting them, \`agora send <name> "…"\` writes into their terminal and costs them a turn. ` +
+      `\`agora read\` with no name lists who you are linked to; ` +
       `(5) always READ before you SEND — reading costs you a turn and them nothing, sending costs ` +
       `them theirs. Send only what only they can answer, never to inform; ` +
       `(6) when a message is relayed into your terminal, answer only if you are genuinely the ` +
       `right one to, then end your turn and resume your own task — do not acknowledge for the ` +
       `sake of it, and never copy @ mentions quoted inside instructions; ` +
-      `(7) \`argos\` with no argument lists your other tools (notify, spawn, read, send, artifact, pc).`;
+      `(7) \`agora\` with no argument lists your other tools (notify, spawn, read, send, artifact, pc).`;
     // Working-tree rules, learnt BEFORE the first command. Every session on a
     // project shares one checkout, so this is the only thing standing between
     // agents and each other's uncommitted work.
@@ -175,8 +175,7 @@ export async function spawnSession(opts: {
     cwd: opts.cwd,
     command: `bash -l ${launcher}`,
     env: {
-      ARGOS_SESSION_ID: id,
-      ORBIT_SESSION_ID: id,
+      AGORA_SESSION_ID: id,
       ...(configDir ? { CLAUDE_CONFIG_DIR: configDir } : {}),
     },
   });
@@ -212,7 +211,7 @@ export async function sessionRoutes(app: FastifyInstance) {
     const from = req.authUser?.name ?? "the owner";
     await tmux.sendLine(
       s.id,
-      `[argos] ${from} is handing you this task (from the canvas): ${text.trim()} — an authentic message relayed by argos.`
+      `[agora] ${from} is handing you this task (from the canvas): ${text.trim()} — an authentic message relayed by agora.`
     );
     return { sent: true };
   });
@@ -322,8 +321,7 @@ export async function sessionRoutes(app: FastifyInstance) {
         cwd: row.project_path,
         command: `bash -l ${launcher}`,
         env: {
-          ARGOS_SESSION_ID: row.id,
-          ORBIT_SESSION_ID: row.id,
+          AGORA_SESSION_ID: row.id,
           // a revived session must sign in as the same account it always did
           ...(configDirFor(projectSettings.account(row.project_path))
             ? { CLAUDE_CONFIG_DIR: configDirFor(projectSettings.account(row.project_path))! }
@@ -370,7 +368,7 @@ export async function sessionRoutes(app: FastifyInstance) {
     return { session: row };
   });
 
-  // Agents summon sub-agents on their own project: `argos spawn <prompt…>`.
+  // Agents summon sub-agents on their own project: `agora spawn <prompt…>`.
   // Hook-secret gate (requireAuth); parent derives everything else. No custom
   // command — agents pick a harness, never an arbitrary executable.
   app.post<{

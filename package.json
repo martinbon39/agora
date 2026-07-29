@@ -1,18 +1,18 @@
 {
-  "name": "argos",
+  "name": "agora",
   "private": true,
   "version": "0.1.0",
-  "description": "Argos \u2014 self-hosted cockpit for Claude Code and CLI agent sessions",
+  "description": "Agora \u2014 self-hosted cockpit for Claude Code and CLI agent sessions",
   "license": "MIT",
   "author": "Martin Bonan",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/martinbon39/argos.git"
+    "url": "git+https://github.com/martinbon39/agora.git"
   },
   "bugs": {
-    "url": "https://github.com/martinbon39/argos/issues"
+    "url": "https://github.com/martinbon39/agora/issues"
   },
-  "homepage": "https://github.com/martinbon39/argos#readme",
+  "homepage": "https://github.com/martinbon39/agora#readme",
   "keywords": [
     "claude-code",
     "agents",

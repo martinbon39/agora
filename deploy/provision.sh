@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Provision a fresh Ubuntu 24.04 VPS (e.g. Hetzner CAX31) for argos.
+# Provision a fresh Ubuntu 24.04 VPS (e.g. Hetzner CAX31) for agora.
 # Run as root: bash provision.sh <domain> [github-repo-url]
 set -euo pipefail
 
@@ -36,38 +36,38 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable
 
-# --- argos user + app ---
-id argos &>/dev/null || useradd -m -s /bin/bash argos
-mkdir -p /home/argos/.ssh
-[ -f /root/.ssh/authorized_keys ] && cp -n /root/.ssh/authorized_keys /home/argos/.ssh/
-chown -R argos:argos /home/argos/.ssh && chmod 700 /home/argos/.ssh
+# --- agora user + app ---
+id agora &>/dev/null || useradd -m -s /bin/bash agora
+mkdir -p /home/agora/.ssh
+[ -f /root/.ssh/authorized_keys ] && cp -n /root/.ssh/authorized_keys /home/agora/.ssh/
+chown -R agora:agora /home/agora/.ssh && chmod 700 /home/agora/.ssh
 
-sudo -u argos mkdir -p /home/argos/projects /home/argos/apps
+sudo -u agora mkdir -p /home/agora/projects /home/agora/apps
 if [ -n "$REPO" ]; then
-  sudo -u argos git clone "$REPO" /home/argos/apps/argos
-  (cd /home/argos/apps/argos && sudo -u argos npm install && sudo -u argos npm run build)
-  sudo -u argos install -Dm755 /home/argos/apps/argos/cli/argos /home/argos/.local/bin/argos
+  sudo -u agora git clone "$REPO" /home/agora/apps/agora
+  (cd /home/agora/apps/agora && sudo -u agora npm install && sudo -u agora npm run build)
+  sudo -u agora install -Dm755 /home/agora/apps/agora/cli/agora /home/agora/.local/bin/agora
 fi
 
-# Claude Code for the argos user
-sudo -u argos bash -c 'curl -fsSL https://claude.ai/install.sh | bash' || true
+# Claude Code for the agora user
+sudo -u agora bash -c 'curl -fsSL https://claude.ai/install.sh | bash' || true
 
 # gh backs the repo picker in the New Project dialog (`gh repo list`); the user
-# still has to run `gh auth login` once from a terminal inside argos.
+# still has to run `gh auth login` once from a terminal inside agora.
 apt-get install -y gh || echo "note: gh unavailable — the GitHub repo picker stays disabled"
 
 # --- services ---
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-install -m 755 "$SCRIPT_DIR/argosctl" /usr/local/bin/argosctl
+install -m 755 "$SCRIPT_DIR/agoractl" /usr/local/bin/agoractl
 # fake xclip: lets headless agents "paste" the last image uploaded from the web
 # UI (see deploy/xclip). Must land ahead of any real xclip on the user's PATH.
-sudo -u argos install -Dm755 "$SCRIPT_DIR/xclip" /home/argos/.local/bin/xclip
-sed "s/argos.example.com/$DOMAIN/" "$SCRIPT_DIR/Caddyfile" > /etc/caddy/Caddyfile
-sed "s#https://argos.example.com#https://$DOMAIN#" "$SCRIPT_DIR/argos.service" \
-  > /etc/systemd/system/argos.service
+sudo -u agora install -Dm755 "$SCRIPT_DIR/xclip" /home/agora/.local/bin/xclip
+sed "s/agora.example.com/$DOMAIN/" "$SCRIPT_DIR/Caddyfile" > /etc/caddy/Caddyfile
+sed "s#https://agora.example.com#https://$DOMAIN#" "$SCRIPT_DIR/agora.service" \
+  > /etc/systemd/system/agora.service
 systemctl daemon-reload
-systemctl enable --now argos
+systemctl enable --now agora
 systemctl reload caddy
 
 echo "Done. Point DNS A record of $DOMAIN at this server, then:"
-echo "  sudo -u argos argosctl enroll   # get the one-shot passkey link"
+echo "  sudo -u agora agoractl enroll   # get the one-shot passkey link"

@@ -5,7 +5,7 @@ import type { FastifyInstance } from "fastify";
  *  /proxy/5173/ → 127.0.0.1:5173). Auth-gated in requireAuth like /api.
  *
  *  Frame-blocking headers are stripped so the target renders in the iframe.
- *  Cookies are dropped in BOTH directions: the argos session cookie must not
+ *  Cookies are dropped in BOTH directions: the agora session cookie must not
  *  leak into arbitrary local apps, and their Set-Cookie must not clobber ours.
  *  Absolute asset paths (/assets/x.js) are caught by the not-found handler in
  *  index.ts via the Referer and redirected back under /proxy/<port>/. */

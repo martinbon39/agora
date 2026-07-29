@@ -1,9 +1,9 @@
-// orbit service worker: web push + notification click-through.
+// agora service worker: web push + notification click-through.
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
 self.addEventListener("push", (event) => {
-  let data = { title: "orbit", body: "", url: "/" };
+  let data = { title: "agora", body: "", url: "/" };
   try {
     data = { ...data, ...event.data.json() };
   } catch {}
