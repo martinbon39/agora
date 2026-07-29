@@ -3,6 +3,7 @@ import path from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { allowedEmail, invites } from "../auth.js";
 import { config } from "../config.js";
+import { withinRoot } from "../paths.js";
 import { closeUserSockets } from "../events.js";
 
 /** Guest allowlist management — owner only (requireAuth also blocks the
@@ -34,8 +35,7 @@ export async function inviteRoutes(app: FastifyInstance) {
       let project: string | null = null;
       if (typeof req.body?.project === "string" && req.body.project) {
         const p = path.resolve(req.body.project);
-        const root = path.resolve(config.projectsDir);
-        if (!p.startsWith(root + path.sep) || !fs.existsSync(p)) {
+        if (!withinRoot(config.projectsDir, p) || !fs.existsSync(p)) {
           return reply.code(400).send({ error: "unknown project" });
         }
         project = p;

@@ -3,6 +3,7 @@ import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import { config } from "../config.js";
 import { getAuthUser, scopeAllows } from "../auth.js";
+import { withinRoot, withinRootReal } from "../paths.js";
 
 /** Read-only repo browsing for the canvas file explorer. Everything is
  *  double-anchored: the project must live under projectsDir, the target must
@@ -10,8 +11,7 @@ import { getAuthUser, scopeAllows } from "../auth.js";
 function resolveProject(project: string | undefined): string | null {
   if (!project) return null;
   const abs = path.resolve(project);
-  const root = path.resolve(config.projectsDir);
-  if (abs !== root && !abs.startsWith(root + path.sep)) return null;
+  if (!withinRoot(config.projectsDir, abs)) return null;
   try {
     if (!fs.statSync(abs).isDirectory()) return null;
   } catch {
@@ -20,24 +20,10 @@ function resolveProject(project: string | undefined): string | null {
   return abs;
 }
 
-/** Containment has to survive symlinks: `..` is caught by the textual check,
- *  but a symlink planted inside the project (agents write files here) points
- *  anywhere on the box, and statSync/readSync follow it. So the REAL path of
- *  the target must also sit under the REAL path of the project — which keeps
- *  working when projectsDir itself contains symlinked project dirs. */
 function resolveInside(projectAbs: string, rel: string): string | null {
   const abs = path.resolve(projectAbs, rel || ".");
-  if (abs !== projectAbs && !abs.startsWith(projectAbs + path.sep)) return null;
-  let realTarget: string;
-  let realRoot: string;
-  try {
-    realRoot = fs.realpathSync(projectAbs);
-    // a not-yet-existing path can't be read anyway; let the caller 404 on it
-    realTarget = fs.realpathSync(abs);
-  } catch {
-    return null;
-  }
-  if (realTarget !== realRoot && !realTarget.startsWith(realRoot + path.sep)) return null;
+  // withinRootReal covers both halves: `..` textually, and symlinks by realpath
+  if (!withinRootReal(projectAbs, abs)) return null;
   return abs;
 }
 

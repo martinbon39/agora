@@ -10,6 +10,7 @@ import { bridgeSession } from "../ptyBridge.js";
 import { writeHookSettings, removeHookSettings } from "../claudeHooks.js";
 import { broadcast, trackUserSocket } from "../events.js";
 import { getAuthUser, scopeAllows } from "../auth.js";
+import { withinRoot } from "../paths.js";
 import { configDirFor } from "../accounts.js";
 
 /** Write a per-session launcher script; returns its path. */
@@ -343,10 +344,16 @@ export async function sessionRoutes(app: FastifyInstance) {
     if (!command) {
       return reply.code(400).send({ error: `unknown harness '${harness}' and no command given` });
     }
+    // No project asked for means the projects root, NOT the home directory.
+    // argos could default to $HOME because one person owned the box; here the
+    // home is shared infrastructure, and a session started there would sit
+    // next to everybody's state. The old guard also let an EXPLICIT
+    // projectPath resolve to $HOME via `..`, because it accepted any cwd
+    // equal to the home dir.
     const cwd = body.projectPath
       ? path.resolve(config.projectsDir, body.projectPath)
-      : os.homedir();
-    if (!cwd.startsWith(path.resolve(config.projectsDir)) && cwd !== os.homedir()) {
+      : path.resolve(config.projectsDir);
+    if (!withinRoot(config.projectsDir, cwd)) {
       return reply.code(400).send({ error: "projectPath must stay under the projects dir" });
     }
     if (!fs.existsSync(cwd)) {

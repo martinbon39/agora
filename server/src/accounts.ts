@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { config } from "./config.js";
+import { withinRoot } from "./paths.js";
 
 /**
  * Claude Code accounts.
@@ -165,7 +166,8 @@ export function create(label: string): Account {
 export function remove(id: string) {
   if (!id) throw new Error("the default account cannot be removed");
   const dir = path.join(accountsRoot(), slugify(id));
-  if (!dir.startsWith(accountsRoot() + path.sep)) throw new Error("bad account id");
+  if (!withinRoot(accountsRoot(), dir) || dir === accountsRoot())
+    throw new Error("bad account id");
   // rmSync does not follow symlinks: the shared CLAUDE.md, agents/ and
   // projects/ of the real config dir are untouched, only the links die
   fs.rmSync(dir, { recursive: true, force: true });
