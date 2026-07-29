@@ -5,7 +5,7 @@ import { promisify } from "node:util";
 const exec = promisify(execFile);
 
 /**
- * GitHub via the `gh` CLI: Martin authenticates once with `gh auth login`
+ * GitHub via the `gh` CLI: the owner authenticates once with `gh auth login`
  * inside an agora terminal session, then agora can list and clone his repos.
  */
 export async function githubRoutes(app: FastifyInstance) {

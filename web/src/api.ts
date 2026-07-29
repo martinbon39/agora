@@ -57,7 +57,7 @@ export interface ChatMessage {
   to_name?: string | null;
 }
 
-/** Who is signed in: Martin (owner) or an invited hackathon guest. */
+/** Who is signed in: the owner, or an invited guest. */
 export interface AuthUser {
   email: string;
   name: string;

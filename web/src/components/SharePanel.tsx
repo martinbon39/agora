@@ -69,7 +69,7 @@ export function SharePanel({
     <Popover
       onOpenChange={(open) => {
         if (!open) return;
-        // re-anchor on every open: the scope offered is the canvas Martin is
+        // re-anchor on every open: the scope offered is the canvas the owner is
         // looking at NOW, not the one from when the page loaded
         setScope(activeProject ?? "");
         load();

@@ -37,7 +37,7 @@ export async function hookRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  // Agents running inside sessions message Martin here (`agora notify` CLI).
+  // Agents running inside sessions message the owner here (`agora notify` CLI).
   // Under /api/hooks/ on purpose: authenticated by the hook secret, not a cookie.
   app.post<{ Body: { title?: string; body?: string; link?: string; session_id?: string } }>(
     "/api/hooks/notify",
@@ -56,7 +56,7 @@ export async function hookRoutes(app: FastifyInstance) {
         body,
         link,
       });
-      // the inbox is Martin's — agents message HIM, not visiting guests
+      // the inbox is the owner's — agents message THEM, not visiting guests
       broadcast({ type: "notification", notification: row }, { ownerOnly: true });
       sendPush({
         title: session ? `${session.name} — ${title}` : title,
@@ -68,7 +68,7 @@ export async function hookRoutes(app: FastifyInstance) {
   );
 
   // Inbox for the dashboard (cookie-authenticated like the rest of /api).
-  // Owner-only content: guests get an empty inbox, not Martin's messages.
+  // Owner-only content: guests get an empty inbox, not the owner's messages.
   app.get("/api/notifications", async (req) => {
     if (req.authUser?.role !== "owner") return { notifications: [], unread: 0 };
     return {

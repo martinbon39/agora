@@ -35,7 +35,7 @@ async function main() {
   initAuthDb(db);
   initPush(db);
   hookSecret(); // ensure the secret exists so the `agora` CLI works from turn one
-  bridgeSecret(); // same for the PC bridge token (Martin copies it to his machine)
+  bridgeSecret(); // same for the PC bridge token (the owner copies it to their machine)
   await ensureTmuxServer();
 
   await app.register(cookie);

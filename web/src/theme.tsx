@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, type ReactNode } from "react";
 
-/** agora is dark-only (Martin's call) — the provider survives as a stable API. */
+/** agora is dark-only — the provider survives as a stable API. */
 const ThemeContext = createContext<{ dark: boolean }>({ dark: true });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

@@ -300,7 +300,7 @@ async function peek(argv) {
   if (!target) {
     if (!out.linked?.length) {
       return console.log(
-        "not linked to anyone — Martin links two terminals on the canvas (Link tool, or L) to let them read and message each other"
+        "not linked to anyone — a human links two terminals on the canvas (Link tool, or L) to let them read and message each other"
       );
     }
     console.log("linked sessions you may read:");

@@ -72,7 +72,7 @@ export function chatTargets<T extends SessionRow>(all: T[], opts: ChatRouting): 
  *  races the TUI's redraws and the line can vanish (observed live); injecting
  *  into a permission dialog is worse — the trailing Enter can ANSWER it. A
  *  busy agent has an imminent Stop hook, so the unread channel serves it the
- *  moment it finishes; a paused one gets it after Martin unblocks it. */
+ *  moment it finishes; a paused one gets it after the owner unblocks it. */
 export function injectableNow(s: SessionRow): boolean {
   return s.agent_state === "idle";
 }
@@ -102,7 +102,7 @@ async function deliverChat(opts: ChatRouting & {
 }
 
 /** Per-project agent chat. Two doors:
- *  - /api/chat*        cookie-authed — the dashboard (Martin) reads and posts
+ *  - /api/chat*        cookie-authed — the dashboard (a human) reads and posts
  *  - /api/hooks/chat*  hook-secret-authed — the `agora chat` CLI inside
  *    sessions; author/harness/project derive from the session row, so an
  *    agent can't impersonate another project. */
@@ -121,8 +121,9 @@ export async function chatRoutes(app: FastifyInstance) {
     if (!scopeAllows(req.authUser, project)) {
       return reply.code(403).send({ error: "outside your shared canvas" });
     }
-    // signed with the actual human's name — a guest must not speak as Martin
-    const author = (req.authUser?.name ?? "martin").toLowerCase();
+    // signed with the actual human's name — a guest must not post under
+    // someone else's name, least of all the owner's
+    const author = (req.authUser?.name ?? "human").toLowerCase();
     const message = chat.insert({
       project_path: project,
       author,

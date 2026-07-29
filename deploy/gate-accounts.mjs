@@ -25,7 +25,7 @@ process.env.AGORA_PROJECTS_DIR = path.join(tmp, "projects");
 const HOME_CLAUDE = path.join(tmp, "home-claude");
 fs.mkdirSync(path.join(HOME_CLAUDE, "agents"), { recursive: true });
 fs.mkdirSync(path.join(HOME_CLAUDE, "projects", "some-project"), { recursive: true });
-fs.writeFileSync(path.join(HOME_CLAUDE, "CLAUDE.md"), "# Martin's harness rules\n");
+fs.writeFileSync(path.join(HOME_CLAUDE, "CLAUDE.md"), "# the owner's harness rules\n");
 fs.writeFileSync(path.join(HOME_CLAUDE, "settings.json"), '{"hooks":{}}\n');
 fs.writeFileSync(path.join(HOME_CLAUDE, "agents", "search-worker.md"), "worker\n");
 fs.writeFileSync(path.join(HOME_CLAUDE, "projects", "some-project", "notes.md"), "memory\n");
@@ -89,13 +89,13 @@ check(
 fs.writeFileSync(inWork(".credentials.json"), '{"token":"WORK"}');
 fs.writeFileSync(
   inWork(".claude.json"),
-  JSON.stringify({ oauthAccount: { emailAddress: "martin@company.com", organizationName: "ACME" } })
+  JSON.stringify({ oauthAccount: { emailAddress: "dev@company.com", organizationName: "ACME" } })
 );
 list = accounts.list();
 const workNow = list.find((a) => a.id === work.id);
 check(
   "once signed in, the account reports the right address",
-  workNow?.email === "martin@company.com" && workNow?.organization === "ACME",
+  workNow?.email === "dev@company.com" && workNow?.organization === "ACME",
   `${workNow?.email} / ${workNow?.organization}`
 );
 check(

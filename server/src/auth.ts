@@ -340,7 +340,7 @@ export function requireAuth(app: FastifyInstance) {
     }
     req.authUser = user;
     // guests collaborate (canvas, terminals, chat) but never administer:
-    // invites (self-escalation), push subs and GitHub tokens are Martin's
+    // invites (self-escalation), push subs and GitHub tokens are the owner's
     if (user.role === "guest" && GUEST_BLOCKED.some((p) => url.startsWith(p))) {
       reply.code(403).send({ error: "owner only" });
     }

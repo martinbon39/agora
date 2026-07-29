@@ -5,12 +5,11 @@
 //   1. The owner's messages must never be silently stranded. They used to be
 //      dropped unless they carried an @mention — and an idle agent has no
 //      upcoming `Stop` hook to flush the unread channel, so the more an agent
-//      rested, the less it heard him.
+//      rested, the less it heard.
 //   2. Agents must not interrupt each other. A project running five agents on
 //      two different tasks became ONE conversation: every announcement woke
-//      everybody, and being woken pulls an agent off its task. Reported by
-//      Martin: "ils bossent sur des trucs différents [...] du coup c'est nul et
-//      ça les réoriente".
+//      everybody, and being woken pulls an agent off its task. Reported from real use: "they are working on different
+//      things [...] so it is useless and it reorients them".
 //
 // So this gate pins WHO GETS INTERRUPTED, which is deliberately much narrower
 // than who may read. Pure over `chatTargets`: no server, no tokens burnt on

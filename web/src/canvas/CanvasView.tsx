@@ -464,7 +464,7 @@ function CanvasInner(
       let changed = false;
       // Duplicate terminal nodes for one session: clients discovering a new
       // session at the same time each created their own node, and the per-node
-      // merge kept them ALL (Martin spawned 1 agent, saw 4). Keep the
+      // merge kept them ALL (one spawn, four nodes on screen). Keep the
       // deterministic `term-<sessionId>` node if present, else the first;
       // removals propagate so the shared doc heals too.
       const seenSession = new Map<string, Node>();

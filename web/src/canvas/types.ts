@@ -28,7 +28,7 @@ export interface CanvasViewport {
   zoom: number;
 }
 
-/** Manual FigJam-style link between two nodes, drawn by Martin. */
+/** Manual FigJam-style link between two nodes, drawn by a human. */
 export interface StoredEdge {
   id: string;
   source: string;

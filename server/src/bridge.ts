@@ -8,7 +8,7 @@ import { config } from "./config.js";
 import { uploadsDir } from "./routes/uploads.js";
 
 /**
- * PC bridge: Martin's machine runs deploy/agora-bridge.mjs, which opens an
+ * PC bridge: the owner's machine runs deploy/agora-bridge.mjs, which opens an
  * OUTBOUND WebSocket to agora (no port to open at home). Agents on the VPS can
  * then list/fetch files from the PC via `agora pc ls|get` -> /api/hooks/pc.
  * Fetched files land in ~/.agora/uploads/pc/ so agents read them locally.

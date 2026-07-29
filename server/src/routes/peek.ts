@@ -15,7 +15,7 @@ import * as tmux from "../tmux.js";
  * and nobody else anything, while a push costs everyone their train of thought.
  *
  * So: the canvas edges ARE the permission. `agora peek <name>` answers only for
- * sessions whose terminal nodes are joined by a link Martin drew.
+ * sessions whose terminal nodes are joined by a link a human drew.
  */
 
 /** Terminal nodes on a canvas carry the session id they display. */
