@@ -22,6 +22,9 @@ import path from "node:path";
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "agora-scope-"));
 process.env.AGORA_DATA_DIR = path.join(tmp, "data");
 process.env.AGORA_PROJECTS_DIR = path.join(tmp, "projects");
+// The owner's identity now has to be a real address: projects are owned by an
+// email, and an identity-less session resolves its email from ALLOWED_EMAIL.
+process.env.AGORA_ALLOWED_EMAIL = "owner@example.com";
 
 const ALPHA = path.join(tmp, "projects", "alpha"); // the guest's project
 const BETA = path.join(tmp, "projects", "beta"); // someone else's project
@@ -34,7 +37,7 @@ const SECRET = path.join(tmp, "secret.txt");
 fs.writeFileSync(SECRET, "AGORA_HOOK_SECRET_LOOKALIKE");
 fs.symlinkSync(SECRET, path.join(ALPHA, "innocent.txt"));
 
-const { initDb, sessions, canvas } = await import("../server/dist/db.js");
+const { initDb, sessions, canvas, projects } = await import("../server/dist/db.js");
 const db = initDb();
 const { initAuthDb, invites, issueSessionFor, requireAuth, hookSecret } = await import(
   "../server/dist/auth.js"
@@ -54,6 +57,11 @@ const check = (name, ok, detail = "") => {
 };
 
 // the guest is scoped to alpha; the invite is what getAuthUser reads live
+// tenancy: both fixture projects belong to the owner, and the guest is
+// invited into exactly one of them. Registering them is what makes the owner's
+// access real now — the role itself no longer grants anything.
+projects.insert({ path: ALPHA, name: "alpha", owner_email: "owner@example.com" });
+projects.insert({ path: BETA, name: "beta", owner_email: "owner@example.com" });
 invites.add("guest@example.com", ALPHA);
 
 const mkSession = (id, projectPath) =>

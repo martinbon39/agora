@@ -1,5 +1,7 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { config } from "./config.js";
 
 /** Is `target` the root itself, or somewhere inside it?
  *
@@ -30,4 +32,23 @@ export function withinRootReal(root: string, target: string): boolean {
     // a path that cannot be resolved cannot be read either — let the caller 404
     return false;
   }
+}
+
+/** Every tenant gets a directory of their own under the projects root, and
+ *  their projects live inside it.
+ *
+ *  The slug is readable on purpose — an operator looking at the filesystem
+ *  should be able to tell whose workspace is whose — but readability alone
+ *  collides: `a@b.c` and `a-b.c` both slugify to `a-b-c`, and a collision here
+ *  means two tenants sharing a directory. So the email's hash is appended,
+ *  which makes the mapping injective without making the path opaque. */
+export function workspaceSlug(email: string): string {
+  const e = email.toLowerCase();
+  const readable = e.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+  const hash = crypto.createHash("sha256").update(e).digest("hex").slice(0, 8);
+  return `${readable || "user"}-${hash}`;
+}
+
+export function workspaceRoot(email: string): string {
+  return path.join(config.projectsDir, workspaceSlug(email));
 }

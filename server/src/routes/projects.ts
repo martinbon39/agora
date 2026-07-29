@@ -3,8 +3,9 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import fs from "node:fs";
 import path from "node:path";
-import { config } from "../config.js";
 import { scopeAllows } from "../auth.js";
+import { projects as registry } from "../db.js";
+import { workspaceRoot } from "../paths.js";
 
 const exec = promisify(execFile);
 
@@ -43,18 +44,25 @@ async function gitInfo(dir: string): Promise<{ branch: string | null; dirty: boo
 
 export async function projectRoutes(app: FastifyInstance) {
   app.get("/api/projects", async (req) => {
-    fs.mkdirSync(config.projectsDir, { recursive: true });
-    const entries = fs
-      .readdirSync(config.projectsDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory() && !e.name.startsWith("."))
-      // a scoped guest's world is exactly one project
-      .filter((e) => scopeAllows(req.authUser, path.join(config.projectsDir, e.name)));
+    // The registry lists, not the filesystem. argos read the projects root with
+    // readdirSync and asked permission per entry, which is fine when every
+    // directory belongs to the one person browsing. Here, scanning a shared
+    // root means the answer starts as "everybody's projects" and narrows —
+    // one forgotten filter and it leaks. Starting from rows owned by the caller
+    // means a leak needs a wrong query, not a missing one.
+    const rows = req.authUser ? registry.forOwner(req.authUser.email) : [];
+    // a guest owns nothing and sees exactly the project their invite names
+    if (req.authUser?.project && scopeAllows(req.authUser, req.authUser.project)) {
+      const invited = registry.get(path.resolve(req.authUser.project));
+      if (invited && !rows.some((r) => r.path === invited.path)) rows.push(invited);
+    }
     const projects = await Promise.all(
-      entries.map(async (e) => {
-        const dir = path.join(config.projectsDir, e.name);
-        const [git, info] = await Promise.all([gitRemote(dir), gitInfo(dir)]);
-        return { name: e.name, path: dir, git, ...info };
-      })
+      rows
+        .filter((r) => fs.existsSync(r.path))
+        .map(async (r) => {
+          const [git, info] = await Promise.all([gitRemote(r.path), gitInfo(r.path)]);
+          return { name: r.name, path: r.path, git, ...info };
+        })
     );
     return { projects };
   });
@@ -62,12 +70,15 @@ export async function projectRoutes(app: FastifyInstance) {
   app.post<{ Body: { name?: string; cloneUrl?: string; createRepo?: boolean; isPrivate?: boolean } }>(
     "/api/projects",
     async (req, reply) => {
-      // creating projects (git clone, gh repo create) stays the owner's move
-      if (req.authUser?.role === "guest") {
-        return reply.code(403).send({ error: "owner only" });
+      // a guest is a visitor inside somebody else's project: no workspace of
+      // their own, so nowhere to put a new project even if they were allowed
+      if (!req.authUser || req.authUser.role === "guest") {
+        return reply.code(403).send({ error: "guests cannot create projects" });
       }
       const { name, cloneUrl, createRepo, isPrivate } = req.body ?? {};
-      fs.mkdirSync(config.projectsDir, { recursive: true });
+      const owner = req.authUser.email.toLowerCase();
+      const root = workspaceRoot(owner);
+      fs.mkdirSync(root, { recursive: true });
 
       if (cloneUrl) {
         if (!/^(https?:\/\/|git@)[\w.@:/~-]+$/.test(cloneUrl)) {
@@ -76,22 +87,26 @@ export async function projectRoutes(app: FastifyInstance) {
         const inferred = cloneUrl.split("/").pop()?.replace(/\.git$/, "") ?? "";
         const dirName = name ?? inferred;
         if (!NAME_RE.test(dirName)) return reply.code(400).send({ error: "invalid project name" });
-        const dest = path.join(config.projectsDir, dirName);
+        const dest = path.join(root, dirName);
         if (fs.existsSync(dest)) return reply.code(409).send({ error: "project already exists" });
         try {
           await exec("git", ["clone", "--", cloneUrl, dest], { timeout: 120_000 });
         } catch (err) {
           return reply.code(502).send({ error: `git clone failed: ${String(err)}` });
         }
+        registry.insert({ path: dest, name: dirName, owner_email: owner });
         return { project: { name: dirName, path: dest, git: cloneUrl } };
       }
 
       if (!name || !NAME_RE.test(name)) {
         return reply.code(400).send({ error: "invalid project name" });
       }
-      const dest = path.join(config.projectsDir, name);
+      const dest = path.join(root, name);
       if (fs.existsSync(dest)) return reply.code(409).send({ error: "project already exists" });
       fs.mkdirSync(dest);
+      // registered before any git work: an unregistered directory is
+      // unreachable by design, so a failure below must not leave one orphaned
+      registry.insert({ path: dest, name, owner_email: owner });
 
       // fresh project: init git so sessions can commit right away — with an
       // explicit identity, the agora user has no global git config

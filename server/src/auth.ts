@@ -11,6 +11,7 @@ import {
 } from "@simplewebauthn/server";
 import Database from "better-sqlite3";
 import { config, env } from "./config.js";
+import { projects, users } from "./db.js";
 
 const SESSION_COOKIE = "agora_session";
 const SESSION_TTL_MS = 30 * 24 * 3600 * 1000;
@@ -33,11 +34,31 @@ export interface AuthUser {
   project: string | null;
 }
 
-/** May this user touch that project's resources? */
+/** May this user touch that project's resources?
+ *
+ *  The single door. Twenty-six call sites across eight route files consult this
+ *  and nothing else, which is why tenancy could be introduced by changing the
+ *  answer rather than by editing twenty-six places.
+ *
+ *  What changed from argos: `role === "owner"` used to short-circuit to true,
+ *  meaning the owner could reach every project on the box. That is correct for
+ *  a cockpit with one human and it is precisely the cross-tenant hole here, so
+ *  the role no longer carries any authority over projects. It now only
+ *  distinguishes a full account (may create projects, has a workspace) from a
+ *  guest (invited into somebody else's project, may not create).
+ *
+ *  Authority moved to the projects table. A directory nobody registered belongs
+ *  to nobody and is refused — the lesson this repo already learned twice: the
+ *  path is a string the client sent, only the row says who owns it. */
 export function scopeAllows(user: AuthUser | undefined, project: string): boolean {
-  if (!user) return false;
-  if (user.role === "owner" || user.project == null) return true;
-  return user.project === project;
+  if (!user || !project) return false;
+  const target = path.resolve(project);
+  const row = projects.get(target);
+  if (!row) return false;
+  if (row.owner_email === user.email.toLowerCase()) return true;
+  // a guest reaches exactly the one project their live invite names
+  const invite = invites.get(user.email);
+  return !!invite && invite.revoked_at == null && invite.project === target;
 }
 
 declare module "fastify" {
@@ -251,6 +272,11 @@ function issueSession(
   reply: FastifyReply,
   identity?: { email: string; name: string; role: AuthRole }
 ) {
+  // Every login path funnels through here, so this is where a tenant comes into
+  // existence — first sign-in creates the row, later ones bump last_seen. Doing
+  // it in the Google callback instead would have missed the passkey path, and
+  // the next auth method after that.
+  if (identity?.email) users.seen(identity.email, identity.name);
   const token = crypto.randomBytes(32).toString("base64url");
   db.prepare(
     `INSERT INTO auth_sessions (token_hash, created_at, expires_at, email, name, role) VALUES (?, ?, ?, ?, ?, ?)`

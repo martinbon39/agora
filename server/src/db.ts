@@ -73,6 +73,24 @@ export function initDb(): Database.Database {
       project_path TEXT PRIMARY KEY,
       claude_account TEXT
     );
+    -- Tenancy. argos had no users table: it had one owner, defined by an env
+    -- var, plus an allowlist of guests. agora has tenants, so a project stops
+    -- being "a directory whose name the client sent" and becomes a row with an
+    -- owner. The path is still the key — every other table already scopes by
+    -- project_path — but the row is now what says who it belongs to.
+    CREATE TABLE IF NOT EXISTS users (
+      email TEXT PRIMARY KEY,
+      name TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      last_seen INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS projects (
+      path TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      owner_email TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS projects_owner ON projects(owner_email);
   `);
   for (const ddl of [
     `ALTER TABLE sessions ADD COLUMN claude_session_id TEXT`,
@@ -316,5 +334,70 @@ export const notifications = {
   },
   markAllRead() {
     db.prepare(`UPDATE notifications SET read_at = ? WHERE read_at IS NULL`).run(Date.now());
+  },
+};
+
+export interface UserRow {
+  email: string;
+  name: string;
+  created_at: number;
+  last_seen: number;
+}
+
+export interface ProjectRow {
+  path: string;
+  name: string;
+  owner_email: string;
+  created_at: number;
+}
+
+export const users = {
+  /** Called on every successful sign-in: first one creates the tenant. */
+  seen(email: string, name: string): UserRow {
+    const now = Date.now();
+    const e = email.toLowerCase();
+    db.prepare(
+      `INSERT INTO users (email, name, created_at, last_seen) VALUES (?, ?, ?, ?)
+       ON CONFLICT(email) DO UPDATE SET last_seen = excluded.last_seen,
+         name = CASE WHEN excluded.name != '' THEN excluded.name ELSE users.name END`
+    ).run(e, name ?? "", now, now);
+    return this.get(e)!;
+  },
+  get(email: string): UserRow | undefined {
+    return db.prepare(`SELECT * FROM users WHERE email = ?`).get(email.toLowerCase()) as
+      | UserRow
+      | undefined;
+  },
+  all(): UserRow[] {
+    return db.prepare(`SELECT * FROM users ORDER BY created_at`).all() as UserRow[];
+  },
+  count(): number {
+    return (db.prepare(`SELECT COUNT(*) AS n FROM users`).get() as { n: number }).n;
+  },
+};
+
+export const projects = {
+  /** The registry. A directory nobody registered belongs to nobody, and
+   *  authorization refuses it — which is the point of the table existing. */
+  insert(p: { path: string; name: string; owner_email: string }): ProjectRow {
+    const row = { ...p, owner_email: p.owner_email.toLowerCase(), created_at: Date.now() };
+    db.prepare(
+      `INSERT INTO projects (path, name, owner_email, created_at)
+       VALUES (@path, @name, @owner_email, @created_at)`
+    ).run(row);
+    return row;
+  },
+  get(projectPath: string): ProjectRow | undefined {
+    return db.prepare(`SELECT * FROM projects WHERE path = ?`).get(projectPath) as
+      | ProjectRow
+      | undefined;
+  },
+  forOwner(email: string): ProjectRow[] {
+    return db
+      .prepare(`SELECT * FROM projects WHERE owner_email = ? ORDER BY created_at DESC`)
+      .all(email.toLowerCase()) as ProjectRow[];
+  },
+  remove(projectPath: string) {
+    db.prepare(`DELETE FROM projects WHERE path = ?`).run(projectPath);
   },
 };

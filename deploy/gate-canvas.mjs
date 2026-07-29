@@ -13,7 +13,7 @@ import path from "node:path";
 
 // isolated data dir: the gate must never touch the live agora.db
 process.env.AGORA_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "agora-gate-"));
-const { initDb } = await import("../server/dist/db.js");
+const { initDb, projects } = await import("../server/dist/db.js");
 initDb();
 const { canvasRoutes } = await import("../server/dist/routes/canvas.js");
 
@@ -30,6 +30,9 @@ app.addHook("onRequest", async (req) => {
 await app.register(canvasRoutes);
 
 const ID = "/tmp/gate-canvas-project";
+// a canvas id IS a project path, and a project is now a row with an owner:
+// an unregistered directory belongs to nobody and the route refuses it
+projects.insert({ path: ID, name: "gate-canvas-project", owner_email: "m@x" });
 const put = (body) =>
   app
     .inject({ method: "PUT", url: "/api/canvas", payload: { id: ID, ...body } })
