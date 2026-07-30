@@ -11,7 +11,7 @@ import {
 } from "@simplewebauthn/server";
 import Database from "better-sqlite3";
 import { config, env } from "./config.js";
-import { projects, users } from "./db.js";
+import { projects, sessions, users, type SessionRow } from "./db.js";
 
 const SESSION_COOKIE = "agora_session";
 const SESSION_TTL_MS = 30 * 24 * 3600 * 1000;
@@ -349,8 +349,7 @@ export function requireAuth(app: FastifyInstance) {
     if (url.startsWith("/api/auth/")) return;
     if (url === "/api/version") return; // build hash — harmless, needed pre-reload
     if (url.startsWith("/ws/bridge")) return; // token-checked in its own handler
-    if (url.startsWith("/api/hooks/") && req.headers["x-agora-hook"] === hookSecret())
-      return;
+    if (url.startsWith("/api/hooks/") && hookCaller(req)) return;
     // CSRF hardening: content in sandboxed/proxied iframes (opaque origin) and
     // third-party pages report Sec-Fetch-Site: cross-site — they must never
     // reach the API even if the browser attached the session cookie
@@ -495,4 +494,53 @@ export async function authRoutes(app: FastifyInstance) {
     reply.clearCookie(SESSION_COOKIE, { path: "/" });
     return { ok: true };
   });
+}
+
+/** Constant-time string compare, so a wrong secret leaks nothing by timing. */
+function sameSecret(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+
+export type HookCaller = { global: true } | { global: false; session: SessionRow };
+
+/**
+ * Who is calling the hook channel.
+ *
+ * Two kinds of bearer. The global secret belongs to the server itself and to the
+ * Claude Code hook settings it writes; a per-session token belongs to exactly
+ * one session and is handed to it through its environment.
+ *
+ * This distinction is the point. Before it, the only credential was the global
+ * secret in a 0600 file, and every caller named itself with AGORA_SESSION_ID —
+ * so any process running as this unix user could post to any project's board
+ * under another agent's name, read that agent's neighbours, or spawn children
+ * under someone else's parent. Presenting a token now settles identity, and the
+ * claimed id is only honoured for the global secret.
+ */
+export function hookCaller(req: FastifyRequest): HookCaller | null {
+  const presented = String(req.headers["x-agora-hook"] ?? "");
+  if (!presented) return null;
+  if (sameSecret(presented, hookSecret())) return { global: true };
+  const session = sessions.byToken(presented);
+  return session ? { global: false, session } : null;
+}
+
+/**
+ * The session a hook request acts AS.
+ *
+ * A token-bearing caller is pinned to its own session and `claimedId` is
+ * ignored — not rejected on mismatch, ignored, because there is no reason for a
+ * session to name anything but itself and treating the claim as a request to
+ * verify would be one more thing to get wrong.
+ */
+export function actingSession(
+  req: FastifyRequest,
+  claimedId?: string | null
+): SessionRow | undefined {
+  const caller = hookCaller(req);
+  if (!caller) return undefined;
+  if (!caller.global) return caller.session;
+  return claimedId ? sessions.get(claimedId) : undefined;
 }

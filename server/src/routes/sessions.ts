@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -9,7 +10,7 @@ import * as tmux from "../tmux.js";
 import { bridgeSession } from "../ptyBridge.js";
 import { writeHookSettings, removeHookSettings } from "../claudeHooks.js";
 import { broadcast, trackUserSocket } from "../events.js";
-import { getAuthUser, scopeAllows } from "../auth.js";
+import { actingSession, getAuthUser, scopeAllows } from "../auth.js";
 import { withinRoot } from "../paths.js";
 import { configDirFor } from "../accounts.js";
 import { CredentialsRequired, claudeEnvFor } from "../tenants.js";
@@ -117,11 +118,15 @@ export async function spawnSession(opts: {
   // throws CredentialsRequired when the tenant has not connected an Anthropic
   // account, and a half-created session would be worse than a refusal.
   const tenantEnv = claudeEnvFor(opts.cwd, opts.harness);
+  // Minted before the tmux session exists, because it has to go into its
+  // environment: the CLI inside reads it from there and never touches the
+  // global secret on disk.
+  const hookToken = crypto.randomBytes(24).toString("base64url");
   let finalCommand = command;
   if (opts.harness === "claude" && !opts.command) {
     // Claude Code reports its state (working / waiting for approval / idle)
     // through lifecycle hooks; inject a per-session settings file.
-    const settingsFile = writeHookSettings(id);
+    const settingsFile = writeHookSettings(id, hookToken);
     const parts = [`claude --settings ${settingsFile}`];
     if (opts.resumeClaudeSessionId && /^[\w-]+$/.test(opts.resumeClaudeSessionId))
       parts.push(`--resume ${opts.resumeClaudeSessionId} --fork-session`);
@@ -175,6 +180,7 @@ export async function spawnSession(opts: {
     created_at: Date.now(),
     last_activity: Date.now(),
     parent_id: opts.parentId ?? null,
+    hook_token: hookToken,
   };
   await tmux.createSession({
     id,
@@ -182,6 +188,7 @@ export async function spawnSession(opts: {
     command: `bash -l ${launcher}`,
     env: {
       AGORA_SESSION_ID: id,
+      AGORA_SESSION_TOKEN: hookToken,
       ...(configDir ? { CLAUDE_CONFIG_DIR: configDir } : {}),
       // last, so it wins: on a shared install the tenant's identity is the only
       // correct one, and the per-project account feature must not override it
@@ -331,7 +338,7 @@ export async function sessionRoutes(app: FastifyInstance) {
       let command = row.command;
       if (row.harness === "claude") {
         // resume the same Claude conversation where it left off
-        const settingsFile = writeHookSettings(row.id);
+        const settingsFile = writeHookSettings(row.id, sessions.ensureHookToken(row.id));
         command = row.claude_session_id
           ? `claude --resume ${row.claude_session_id} --settings ${settingsFile}`
           : `claude --settings ${settingsFile}`;
@@ -343,6 +350,9 @@ export async function sessionRoutes(app: FastifyInstance) {
         command: `bash -l ${launcher}`,
         env: {
           AGORA_SESSION_ID: row.id,
+          // reviving reuses the session's own token, minting one if the row
+          // predates the column
+          AGORA_SESSION_TOKEN: sessions.ensureHookToken(row.id),
           // a revived session must sign in as the same account it always did
           ...(configDirFor(projectSettings.account(row.project_path))
             ? { CLAUDE_CONFIG_DIR: configDirFor(projectSettings.account(row.project_path))! }
@@ -405,7 +415,10 @@ export async function sessionRoutes(app: FastifyInstance) {
     Body: { session_id?: string; text?: string; harness?: string; model?: string; mode?: string; name?: string };
   }>("/api/hooks/spawn", async (req, reply) => {
     const body = req.body ?? {};
-    const parent = body.session_id ? sessions.get(body.session_id) : undefined;
+    // The parent decides the child's project, its Claude identity and the canvas
+    // edge, so a caller naming someone else's session would plant a sub-agent in
+    // their project. The token answers who the parent is.
+    const parent = actingSession(req, body.session_id);
     if (!parent) return reply.code(404).send({ error: "unknown parent session" });
     const harness = body.harness ?? "claude";
     if (!HARNESS_COMMANDS[harness]) return reply.code(400).send({ error: `unknown harness '${harness}'` });

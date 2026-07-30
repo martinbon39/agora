@@ -25,11 +25,23 @@ function fail(msg) {
   process.exit(1);
 }
 
+/** Bearer for the hook channel.
+ *
+ *  A session's own token, from the environment agora put it there, is preferred
+ *  over the global secret on disk. The global secret authenticates ANY caller as
+ *  ANY session — every command below names itself with AGORA_SESSION_ID — so
+ *  reading it from a file meant any process running as this unix user could post
+ *  to a project board under another agent's name. The token settles identity
+ *  server-side, and the file is only the fallback for a shell that agora did not
+ *  start.
+ */
 function secret() {
+  const token = env("SESSION_TOKEN");
+  if (token) return token;
   try {
     return fs.readFileSync(path.join(dataDir, "hook-secret"), "utf8").trim();
   } catch {
-    fail(`secret not found (${path.join(dataDir, "hook-secret")}) — has the agora server ever run?`);
+    fail(`no session token and no hook secret (${path.join(dataDir, "hook-secret")}) — are you inside an agora session?`);
   }
 }
 

@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import { config, dbPath, logsDir } from "./config.js";
@@ -21,6 +22,9 @@ export interface SessionRow {
   last_summary?: string | null;
   /** Session that spawned this one via `agora spawn` (canvas edge). */
   parent_id?: string | null;
+  /** Per-session bearer for the hook channel. The `agora` CLI presents this
+   *  instead of the one global secret, so a session can only act as itself. */
+  hook_token?: string | null;
 }
 
 let db: Database.Database;
@@ -101,6 +105,7 @@ export function initDb(): Database.Database {
     `ALTER TABLE sessions ADD COLUMN parent_id TEXT`,
     // set = a deliberate one-to-one interruption (`agora ask`), null = the board
     `ALTER TABLE chat_messages ADD COLUMN to_session TEXT`,
+    `ALTER TABLE sessions ADD COLUMN hook_token TEXT`,
   ]) {
     try {
       db.exec(ddl);
@@ -125,9 +130,36 @@ function dropChatFeature() {
 export const sessions = {
   insert(row: SessionRow) {
     db.prepare(
-      `INSERT INTO sessions (id, name, project_path, harness, command, status, agent_state, created_at, last_activity, claude_session_id, parent_id)
-       VALUES (@id, @name, @project_path, @harness, @command, @status, @agent_state, @created_at, @last_activity, @claude_session_id, @parent_id)`
-    ).run({ claude_session_id: null, parent_id: null, ...row });
+      `INSERT INTO sessions (id, name, project_path, harness, command, status, agent_state, created_at, last_activity, claude_session_id, parent_id, hook_token)
+       VALUES (@id, @name, @project_path, @harness, @command, @status, @agent_state, @created_at, @last_activity, @claude_session_id, @parent_id, @hook_token)`
+    ).run({
+      claude_session_id: null,
+      parent_id: null,
+      // minted here rather than at the call sites: every session must have one,
+      // and a session created down some path that forgot would silently be
+      // unable to use the fleet CLI
+      hook_token: crypto.randomBytes(24).toString("base64url"),
+      ...row,
+    });
+  },
+  setHookToken(id: string, token: string) {
+    db.prepare(`UPDATE sessions SET hook_token = ? WHERE id = ?`).run(token, id);
+  },
+  /** The session's hook bearer, minting one for rows that predate the column. */
+  ensureHookToken(id: string): string {
+    const row = this.get(id);
+    if (row?.hook_token) return row.hook_token;
+    const token = crypto.randomBytes(24).toString("base64url");
+    this.setHookToken(id, token);
+    return token;
+  },
+  /** Resolve a session from its hook bearer. The token IS the identity — no
+   *  client-supplied session id is consulted. */
+  byToken(token: string): SessionRow | undefined {
+    if (!token) return undefined;
+    return db.prepare(`SELECT * FROM sessions WHERE hook_token = ?`).get(token) as
+      | SessionRow
+      | undefined;
   },
   all(): SessionRow[] {
     return db.prepare(`SELECT * FROM sessions ORDER BY created_at DESC`).all() as SessionRow[];

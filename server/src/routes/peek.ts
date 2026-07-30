@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { canvas, sessions, type SessionRow } from "../db.js";
+import { actingSession } from "../auth.js";
 import * as tmux from "../tmux.js";
 
 /**
@@ -182,7 +183,9 @@ export async function peekRoutes(app: FastifyInstance) {
       mode?: string;
       lines?: string;
     };
-    const me = session ? sessions.get(session) : undefined;
+    // "me" decides which links apply, so a caller naming someone else would
+    // borrow their neighbours — read AND send
+    const me = actingSession(req, session);
     if (!me) return reply.code(404).send({ error: "unknown session" });
     const linked = linkedSessionIds(me.project_path, me.id);
 

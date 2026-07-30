@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { chat, sessions, type SessionRow } from "../db.js";
-import { scopeAllows } from "../auth.js";
+import { actingSession, scopeAllows } from "../auth.js";
 import { broadcast } from "../events.js";
 import * as tmux from "../tmux.js";
 import { resolveLinked } from "./peek.js";
@@ -143,10 +143,10 @@ export async function chatRoutes(app: FastifyInstance) {
 
   app.post("/api/hooks/chat", async (req, reply) => {
     const { session_id, body } = (req.body ?? {}) as { session_id?: string; body?: string };
-    if (!session_id || !body?.trim()) {
-      return reply.code(400).send({ error: "session_id and body required" });
-    }
-    const s = sessions.get(session_id);
+    if (!body?.trim()) return reply.code(400).send({ error: "body required" });
+    // A board post is signed with the author's name, so letting the caller name
+    // the session was letting it sign as any agent on the box.
+    const s = actingSession(req, session_id);
     if (!s) return reply.code(404).send({ error: "unknown session" });
     const message = chat.insert({
       project_path: s.project_path,
@@ -216,7 +216,7 @@ export async function chatRoutes(app: FastifyInstance) {
   // cursor advances server-side.
   app.get("/api/hooks/chat/unread", async (req, reply) => {
     const { session } = req.query as { session?: string };
-    const s = session ? sessions.get(session) : undefined;
+    const s = actingSession(req, session);
     if (!s) return reply.code(404).send({ error: "unknown session" });
     return { messages: chat.takeUnread(s.id, s.project_path, s.name) };
   });
@@ -225,7 +225,7 @@ export async function chatRoutes(app: FastifyInstance) {
    *  Pull-only by design; nothing here ever interrupted anyone. */
   app.get("/api/hooks/chat/board", async (req, reply) => {
     const { session, n } = req.query as { session?: string; n?: string };
-    const s = session ? sessions.get(session) : undefined;
+    const s = actingSession(req, session);
     if (!s) return reply.code(404).send({ error: "unknown session" });
     const limit = Math.min(200, Math.max(1, Number(n) || 30));
     return { messages: chat.board(s.project_path, limit) };
@@ -233,7 +233,7 @@ export async function chatRoutes(app: FastifyInstance) {
 
   app.get("/api/hooks/chat/log", async (req, reply) => {
     const { session, n } = req.query as { session?: string; n?: string };
-    const s = session ? sessions.get(session) : undefined;
+    const s = actingSession(req, session);
     if (!s) return reply.code(404).send({ error: "unknown session" });
     const limit = Math.min(200, Math.max(1, Number(n) || 30));
     return { messages: chat.board(s.project_path, limit) };

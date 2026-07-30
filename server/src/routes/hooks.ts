@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { notifications, sessions } from "../db.js";
 import { classify } from "../claudeHooks.js";
 import { broadcast, addEventClient } from "../events.js";
-import { allowedEmail, colorForEmail, ownerDisplayName } from "../auth.js";
+import { actingSession, allowedEmail, colorForEmail, ownerDisplayName } from "../auth.js";
 import { sendPush } from "../push.js";
 
 export async function hookRoutes(app: FastifyInstance) {
@@ -11,7 +11,11 @@ export async function hookRoutes(app: FastifyInstance) {
     Params: { id: string; event: string };
     Body: { message?: string; session_id?: string };
   }>("/api/hooks/:id/:event", async (req, reply) => {
-    const row = sessions.get(req.params.id);
+    // The id is in the URL, but a token-bearing caller is pinned to its own
+    // session regardless: a session reporting state for another one would let it
+    // paint a neighbour as idle, and idle is precisely what makes an agent
+    // eligible to be interrupted.
+    const row = actingSession(req, req.params.id);
     if (!row) return reply.code(404).send({ error: "unknown session" });
     // hook payloads carry Claude Code's own session id — remember it so
     // archived tmux sessions can be revived with `claude --resume`
@@ -49,7 +53,9 @@ export async function hookRoutes(app: FastifyInstance) {
       if (link && !/^(https?:\/\/|\/)/.test(link)) {
         return reply.code(400).send({ error: "link must be an URL or an absolute path" });
       }
-      const session = req.body?.session_id ? sessions.get(req.body.session_id) : undefined;
+      // the token settles who this is; session_id is only honoured for the
+      // global secret, which is the server and its own Claude hook settings
+      const session = actingSession(req, req.body?.session_id);
       const row = notifications.insert({
         session_id: session?.id ?? null,
         title,

@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "./config.js";
-import { hookSecret } from "./auth.js";
 
 /**
  * Claude Code reports its own state through lifecycle hooks — far more
@@ -15,7 +14,12 @@ export function hooksDir() {
   return path.join(config.dataDir, "hooks");
 }
 
-export function writeHookSettings(sessionId: string): string {
+/** The settings file is handed to `claude --settings`, so the SESSION can read
+ *  it. That is why the header below carries the session's own token and not the
+ *  global secret: with the global secret in here, an agent could read its own
+ *  settings file and then act as any session on the box, which is exactly what
+ *  per-session tokens exist to prevent. */
+export function writeHookSettings(sessionId: string, hookToken: string): string {
   const hooks: Record<string, unknown> = {};
   for (const event of FORWARDED_EVENTS) {
     const url = `http://127.0.0.1:${config.port}/api/hooks/${sessionId}/${event}`;
@@ -25,7 +29,7 @@ export function writeHookSettings(sessionId: string): string {
           {
             type: "command",
             // -m 3: never let a dead agora server stall Claude's turn
-            command: `curl -s -m 3 -X POST -H 'Content-Type: application/json' -H 'X-Agora-Hook: ${hookSecret()}' --data-binary @- ${url} >/dev/null 2>&1 || true`,
+            command: `curl -s -m 3 -X POST -H 'Content-Type: application/json' -H 'X-Agora-Hook: ${hookToken}' --data-binary @- ${url} >/dev/null 2>&1 || true`,
           },
         ],
       },

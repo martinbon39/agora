@@ -249,6 +249,10 @@ check(
 await app.close();
 fs.rmSync(tmp, { recursive: true, force: true });
 spawnSync("tmux", ["-L", GATE_SOCKET, "kill-server"], { stdio: "ignore" });
+// kill-server stops the server but leaves the socket FILE in /tmp/tmux-<uid>/.
+// Harmless, but it is where the ~30 stale argos-gate-* entries on the reference
+// box come from, so unlink it too.
+fs.rmSync(path.join(os.tmpdir(), `tmux-${process.getuid()}`, GATE_SOCKET), { force: true });
 
 const failed = results.filter((r) => !r.ok).length;
 console.log(`${results.length - failed}/${results.length} pass`);
