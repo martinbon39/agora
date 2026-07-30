@@ -45,6 +45,19 @@ export interface Project {
 }
 
 /** Per-project agent chat message (agents post via `agora chat`). */
+/** One task on the shared plan. The same rows the agents read with `agora plan`. */
+export interface PlanTask {
+  id: number;
+  project_path: string;
+  title: string;
+  status: "open" | "claimed" | "done" | "blocked";
+  claimed_by: string | null;
+  claimed_by_name: string | null;
+  note: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
 export interface ChatMessage {
   id: number;
   project_path: string;
@@ -236,6 +249,20 @@ export const api = {
       body: JSON.stringify({ audio: audioBase64, mime }),
       signal: AbortSignal.timeout(45000), // a hung transcription must not wedge the mic UI
     }).then((r) => json<{ text: string }>(r)),
+  planList: (project: string) =>
+    fetch(`/api/plan?project=${encodeURIComponent(project)}`).then((r) =>
+      json<{ tasks: PlanTask[] }>(r)
+    ),
+  planAdd: (project: string, title: string) =>
+    fetch("/api/plan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project, title }),
+    }).then((r) => json<{ task: PlanTask }>(r)),
+  planRemove: (project: string, id: number) =>
+    fetch(`/api/plan/${id}?project=${encodeURIComponent(project)}`, { method: "DELETE" }).then((r) =>
+      json<{ ok: true }>(r)
+    ),
   chatList: (project: string) =>
     fetch(`/api/chat?project=${encodeURIComponent(project)}`).then((r) =>
       json<{ messages: ChatMessage[] }>(r)

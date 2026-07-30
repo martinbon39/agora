@@ -6,6 +6,7 @@ export type CanvasNodeType =
   | "snake"
   | "chat"
   | "todo"
+  | "plan"
   | "files"
   | "file"
   | "image";

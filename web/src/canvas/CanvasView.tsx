@@ -25,6 +25,7 @@ import {
   Gamepad2,
   Globe,
   Joystick,
+  ListChecks,
   ListTodo,
   MessagesSquare,
   SquareTerminal,
@@ -53,6 +54,7 @@ import { DinoNode } from "./nodes/DinoNode";
 import { SnakeNode } from "./nodes/SnakeNode";
 import { ChatNode } from "./nodes/ChatNode";
 import { TodoNode } from "./nodes/TodoNode";
+import { PlanNode } from "./nodes/PlanNode";
 import { FilesNode } from "./nodes/FilesNode";
 import { FileNode } from "./nodes/FileNode";
 import { ImageNode } from "./nodes/ImageNode";
@@ -68,6 +70,7 @@ const nodeTypes = {
   snake: SnakeNode,
   chat: ChatNode,
   todo: TodoNode,
+  plan: PlanNode,
   files: FilesNode,
   file: FileNode,
   image: ImageNode,
@@ -80,6 +83,7 @@ const NODE_DEFAULTS: Record<Exclude<CanvasNodeType, "terminal">, { w: number; h:
   snake: { w: 420, h: 380, data: {} },
   chat: { w: 380, h: 460, data: {} },
   todo: { w: 260, h: 320, data: { items: [] } },
+  plan: { w: 340, h: 400, data: {} },
   files: { w: 280, h: 420, data: {} },
   file: { w: 520, h: 420, data: { path: "" } },
   image: { w: 420, h: 300, data: { src: "" } },
@@ -1365,6 +1369,11 @@ function CanvasInner(
                   icon: <Joystick className="size-3.5 text-lime-400" />,
                   label: "Snake",
                   run: () => menuAdd("snake"),
+                },
+                {
+                  icon: <ListChecks className="size-3.5 text-emerald-400" />,
+                  label: "Plan",
+                  run: () => menuAdd("plan"),
                 },
                 {
                   icon: <MessagesSquare className="size-3.5 text-violet-400" />,

@@ -6,6 +6,7 @@ import {
   Globe,
   Joystick,
   Link2,
+  ListChecks,
   ListTodo,
   Maximize,
   MessagesSquare,
@@ -174,6 +175,9 @@ export function Dock({
               <SquareTerminal className="size-3.5 text-muted-foreground" /> Terminal
             </MenuItem>
             <MenuSeparator />
+            <MenuItem onClick={() => onAdd("plan")}>
+              <ListChecks className="size-3.5 text-emerald-400" /> Plan
+            </MenuItem>
             <MenuItem onClick={() => onAdd("chat")}>
               <MessagesSquare className="size-3.5 text-amber-400" /> Project board
             </MenuItem>
