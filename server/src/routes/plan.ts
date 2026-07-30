@@ -1,8 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import path from "node:path";
-import { plan } from "../db.js";
+import { plan, sessions } from "../db.js";
 import { actingSession, scopeAllows } from "../auth.js";
 import { broadcast } from "../events.js";
+import { costOfTranscript, sumCosts } from "../cost.js";
+import { transcriptPath } from "./peek.js";
 
 /**
  * The shared plan.
@@ -98,6 +100,35 @@ export async function planRoutes(app: FastifyInstance) {
       default:
         return reply.code(400).send({ error: "action must be add, claim, done, drop or block" });
     }
+  });
+
+  /**
+   * What this project has spent, derived from its sessions' transcripts.
+   *
+   * Recomputed on request rather than accumulated in a counter — the transcripts
+   * are the ledger, so the answer is idempotent and can never drift. Archived
+   * sessions count: money spent is spent whether or not the terminal is still on
+   * the canvas.
+   */
+  app.get("/api/cost", async (req, reply) => {
+    const project = (req.query as { project?: string }).project ?? "";
+    if (!scopeAllows(req.authUser, project)) {
+      return reply.code(403).send({ error: "outside your shared canvas" });
+    }
+    const root = path.resolve(project);
+    const rows = sessions.all().filter((s) => s.project_path === root);
+    const per = rows.map((s) => {
+      const file = transcriptPath(s);
+      const cost = file ? costOfTranscript(file) : null;
+      return { id: s.id, name: s.name, usd: cost?.usd ?? 0, cost };
+    });
+    const total = sumCosts(per.map((p) => p.cost).filter((c): c is NonNullable<typeof c> => !!c));
+    return {
+      total,
+      sessions: per
+        .map(({ id, name, usd }) => ({ id, name, usd }))
+        .sort((a, b) => b.usd - a.usd),
+    };
   });
 
   // ---- the dashboard ------------------------------------------------------

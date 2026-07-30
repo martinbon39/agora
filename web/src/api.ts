@@ -249,6 +249,21 @@ export const api = {
       body: JSON.stringify({ audio: audioBase64, mime }),
       signal: AbortSignal.timeout(45000), // a hung transcription must not wedge the mic UI
     }).then((r) => json<{ text: string }>(r)),
+  cost: (project: string) =>
+    fetch(`/api/cost?project=${encodeURIComponent(project)}`).then((r) =>
+      json<{
+        total: {
+          usd: number;
+          inputTokens: number;
+          outputTokens: number;
+          cacheReadTokens: number;
+          cacheWriteTokens: number;
+          unpricedTokens: number;
+          unpricedModels: string[];
+        };
+        sessions: { id: string; name: string; usd: number }[];
+      }>(r)
+    ),
   planList: (project: string) =>
     fetch(`/api/plan?project=${encodeURIComponent(project)}`).then((r) =>
       json<{ tasks: PlanTask[] }>(r)

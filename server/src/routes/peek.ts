@@ -2,8 +2,10 @@ import type { FastifyInstance } from "fastify";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { canvas, sessions, type SessionRow } from "../db.js";
+import { canvas, projectSettings, sessions, type SessionRow } from "../db.js";
 import { actingSession } from "../auth.js";
+import { claudeConfigDirOf } from "../tenants.js";
+import { configDirFor } from "../accounts.js";
 import * as tmux from "../tmux.js";
 
 /**
@@ -115,9 +117,13 @@ export function resolveLinked(me: SessionRow, name: string): Resolution {
 
 /** Where Claude Code writes a session's transcript: one JSONL per conversation,
  *  under a directory named after the project path with slashes flattened. */
-function transcriptPath(s: SessionRow): string | null {
+export function transcriptPath(s: SessionRow): string | null {
   if (!s.claude_session_id) return null;
-  const configDir = process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude");
+  // the SESSION's config dir, not the server's — see claudeConfigDirOf
+  const configDir = claudeConfigDirOf(
+    s.project_path,
+    configDirFor(projectSettings.account(s.project_path))
+  );
   const slug = s.project_path.replace(/[/.]/g, "-");
   const file = path.join(configDir, "projects", slug, `${s.claude_session_id}.jsonl`);
   return fs.existsSync(file) ? file : null;

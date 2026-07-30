@@ -37,12 +37,38 @@ export const PlanNode = memo(function PlanNode({ id, selected }: NodeProps) {
   const project = ctx.canvasId;
   const [tasks, setTasks] = useState<PlanTask[]>([]);
   const [draft, setDraft] = useState("");
+  const [spend, setSpend] = useState<number | null>(null);
+  const [unpriced, setUnpriced] = useState(0);
 
   const refresh = useCallback(() => {
     api
       .planList(project)
       .then(({ tasks }) => setTasks(tasks))
       .catch(() => {});
+  }, [project]);
+
+  // What the room has cost so far. The research on running fleets is blunt about
+  // this: the loudest objection to parallel agents is that it is "a very
+  // expensive experiment". One number answers it, so it belongs where the work
+  // is, not behind a settings page.
+  useEffect(() => {
+    let cancelled = false;
+    const poll = () =>
+      api
+        .cost(project)
+        .then(({ total }) => {
+          if (cancelled) return;
+          setSpend(total.usd);
+          setUnpriced(total.unpricedTokens);
+        })
+        .catch(() => {});
+    poll();
+    // derived from transcripts on disk, so a poll is a file read, not a counter
+    const timer = setInterval(poll, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, [project]);
 
   useEffect(() => {
@@ -83,6 +109,20 @@ export const PlanNode = memo(function PlanNode({ id, selected }: NodeProps) {
           <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground/60">
             {stuck > 0 && <span className="text-rose-400/80">{stuck} stuck · </span>}
             {held} held · {open} free
+            {spend !== null && (
+              <span
+                className="text-foreground/70"
+                title={
+                  unpriced > 0
+                    ? `plus ${unpriced.toLocaleString()} tokens on a model with no price on record — the real figure is higher`
+                    : "spent so far, from the agents' own transcripts"
+                }
+              >
+                {" · "}
+                {spend < 0.01 ? "<$0.01" : `$${spend.toFixed(2)}`}
+                {unpriced > 0 && <span className="text-amber-400">+</span>}
+              </span>
+            )}
           </span>
           <button
             title="Close"

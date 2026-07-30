@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { config, openSignup } from "./config.js";
 import { projects } from "./db.js";
@@ -117,4 +118,24 @@ export function claudeEnvFor(projectPath: string, harness: string): Record<strin
   const key = tenantApiKey(owner);
   if (key) env.ANTHROPIC_API_KEY = key;
   return env;
+}
+
+/**
+ * Where a session's Claude config — and therefore its transcript — actually
+ * lives.
+ *
+ * Upstream's transcript reader used `process.env.CLAUDE_CONFIG_DIR`, which is
+ * the SERVER's environment, not the session's. That was right when every session
+ * inherited the server's identity; now each one runs with its own
+ * CLAUDE_CONFIG_DIR, so reading the server's env means looking in the wrong
+ * directory and reporting "no transcript" for a session that has one. Resolve it
+ * the same way the spawn does, in the same order.
+ */
+export function claudeConfigDirOf(projectPath: string, accountConfigDir: string | null): string {
+  if (openSignup()) {
+    const owner = tenantOf(projectPath);
+    if (owner) return tenantClaudeDir(owner);
+  }
+  if (accountConfigDir) return accountConfigDir;
+  return process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude");
 }
