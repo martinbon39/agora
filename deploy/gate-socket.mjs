@@ -189,6 +189,19 @@ if (!bwrap) {
 }
 
 srv.kill("SIGTERM");
+const died = await waitFor(() => {
+  try {
+    process.kill(srv.pid, 0);
+    return false;
+  } catch {
+    return true;
+  }
+}, 8_000);
+check(
+  "REFUSED: SIGTERM actually kills the server — a signal handler REPLACES the default terminate action",
+  died,
+  "a handler that only cleans up leaves the process unkillable: deploys cannot restart and every gate leaks one"
+);
 await waitFor(() => !fs.existsSync(SOCK), 5_000);
 check(
   "the socket is removed on shutdown — a stale one would block the next boot",

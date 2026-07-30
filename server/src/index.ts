@@ -222,14 +222,27 @@ async function main() {
   // so its permissions are the only thing standing on it
   fs.chmodSync(sockPath, 0o600);
   app.log.info({ sockPath }, "listening on unix socket");
-  const closeSocket = () => {
-    local.close();
+  // Registering a signal handler REPLACES the default terminate action, so a
+  // handler that only cleans up leaves the process alive and unkillable by
+  // SIGTERM. That shipped: `kill` stopped working, a deploy could not restart,
+  // and every gate that SIGTERMs its own server leaked a node process. Clean up,
+  // then exit — and do it once, since a second signal must not re-enter.
+  let shuttingDown = false;
+  const shutdown = (signal: NodeJS.Signals) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    try {
+      local.close();
+    } catch {}
     try {
       fs.unlinkSync(sockPath);
     } catch {}
+    app.log.info({ signal }, "shutting down");
+    // 128 + signal number is the conventional exit status for "killed by signal"
+    process.exit(signal === "SIGINT" ? 130 : 143);
   };
-  process.once("SIGTERM", closeSocket);
-  process.once("SIGINT", closeSocket);
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
 }
 
 main().catch((err) => {
