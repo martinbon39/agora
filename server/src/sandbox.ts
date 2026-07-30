@@ -88,6 +88,17 @@ export function bwrapArgs(opts: SandboxOpts): string[] | null {
   // /dev must be real: the pty arrives on fd 0/1/2 so termios works either way,
   // but anything that reopens /dev/tty breaks on an empty /dev
   args.push("--dev", "/dev");
+  // DNS. /etc/resolv.conf is a symlink into /run on systemd-resolved hosts, so
+  // binding /etc alone mounts a link that dangles: names stop resolving while
+  // the network is still routable. That shipped once — `claude` resolved, the
+  // gate was happy, and a session would have died on its first API call.
+  //
+  // Bind the resolver directory, NOT /run: /run holds dbus, credentials, log,
+  // fail2ban, and on another host a docker socket. Handing those over would
+  // reopen through the back door more than the tmpfs just closed.
+  for (const p of ["/run/systemd/resolve", "/etc/resolv.conf"]) {
+    if (fs.existsSync(p)) args.push(...roBind(p));
+  }
   // a private PID namespace, so /proc/<pid>/environ of another session — which
   // holds its ANTHROPIC_API_KEY — is not merely protected by a host sysctl
   // (ptrace_scope) but structurally absent

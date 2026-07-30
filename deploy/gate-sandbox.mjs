@@ -16,6 +16,19 @@
 // Reading answers back through capture-pane also exercises the claim the design
 // rests on: send-keys and capture-pane are served by the tmux SERVER over its own
 // socket, and never cross the pane's namespace.
+//
+// A SANDBOX BREAKS IN BOTH DIRECTIONS, and an earlier version of this gate could
+// only see one of them. Almost every assertion was "must be ABSENT", so the
+// failure mode "everything correctly forbidden and the work impossible" passed in
+// green — which is exactly what shipped: /etc/resolv.conf is a symlink into /run,
+// /run was not bound, and the sandbox had no DNS at all. `claude` resolved, the
+// gate was happy, and a session would have died on its first API call. So the
+// egress block at the end asserts what must still WORK, per mode, and it is
+// written to survive the network commit: with bwrap alone the model API must be
+// reachable from inside; once --unshare-net lands it must be unreachable
+// directly and reachable through the relay. The same probe pins both halves, and
+// the day the network is cut on purpose, that will be distinguishable from
+// cutting it by accident.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -195,6 +208,38 @@ if (sid) {
     tty === 0,
     "exit " + tty
   );
+  // ---- egress: what must still WORK ------------------------------------
+  // Compared against the HOST, so this tests the sandbox rather than the
+  // internet: if the box itself cannot resolve, there is nothing to conclude.
+  const hostResolves =
+    spawnSync("getent", ["hosts", "api.anthropic.com"], { encoding: "utf8" }).status === 0;
+  if (!hostResolves) {
+    console.log("SKIP  the host itself cannot resolve api.anthropic.com — egress is untestable here");
+  } else {
+    const dns = inPane("getent hosts api.anthropic.com >/dev/null", "N");
+    check(
+      "EGRESS: names resolve inside — /etc/resolv.conf is a symlink into /run, and binding /etc alone leaves it dangling",
+      dns === 0,
+      "exit " + dns + " (this shipped broken once: DNS dead, `claude` still resolving, gate green)"
+    );
+    const https = inPane(
+      'test -n "$(curl -s -o /dev/null -w %{http_code} --max-time 15 https://api.anthropic.com/v1/messages | grep -E \'^[1-5][0-9][0-9]$\')"',
+      "P"
+    );
+    check(
+      "EGRESS: and the model API answers over TLS — an agent that cannot reach it is not doing work",
+      https === 0,
+      "exit " + https + " (any HTTP status proves TLS and connectivity; the CAs come from /usr)"
+    );
+    check(
+      "REFUSED: /run is not handed over wholesale — only the resolver directory",
+      (() => {
+        const listed = inPane("test -z \"$(ls /run | grep -v \'^systemd$\')\"", "U");
+        return listed === 0;
+      })(),
+      "dbus, credentials, log and a docker socket live in /run"
+    );
+  }
 }
 
 tmux("kill-server");
