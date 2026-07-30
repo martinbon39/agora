@@ -188,19 +188,42 @@ if (!bwrap) {
   );
 }
 
-srv.kill("SIGTERM");
-const died = await waitFor(() => {
+/**
+ * Reap the server, and FAIL if it took a SIGKILL.
+ *
+ * Registering a signal handler replaces Node's default terminate action, so a
+ * handler that only cleans up leaves the process running. That shipped once and
+ * this gate leaked a server on every run — five of them were still resident
+ * twelve hours later, holding ports.
+ *
+ * The subtlety worth keeping: `process.once` removes the listener after the first
+ * signal, so those leaked servers were not unkillable, they survived exactly ONE
+ * SIGTERM and died to the second. Which is worse for a reaper, not better — one
+ * polite signal looks like it worked.
+ *
+ * So: SIGTERM, wait, SIGKILL if still alive, and fail. A gate that quietly escalates
+ * hides the leak on any old build — a bisect, a rollback, an un-rebased branch.
+ */
+const alive = () => {
   try {
     process.kill(srv.pid, 0);
-    return false;
-  } catch {
     return true;
+  } catch {
+    return false;
   }
-}, 8_000);
+};
+srv.kill("SIGTERM");
+const diedPolitely = await waitFor(() => !alive(), 8_000);
+if (!diedPolitely) {
+  srv.kill("SIGKILL");
+  await waitFor(() => !alive(), 5_000);
+}
 check(
-  "REFUSED: SIGTERM actually kills the server — a signal handler REPLACES the default terminate action",
-  died,
-  "a handler that only cleans up leaves the process unkillable: deploys cannot restart and every gate leaks one"
+  "REFUSED: one SIGTERM is enough to stop the server — it must not need a SIGKILL",
+  diedPolitely,
+  diedPolitely
+    ? "no escalation needed"
+    : "it survived SIGTERM and had to be SIGKILLed — every run of this gate leaks a server"
 );
 await waitFor(() => !fs.existsSync(SOCK), 5_000);
 check(
