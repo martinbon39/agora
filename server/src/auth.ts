@@ -496,8 +496,3 @@ export async function authRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 }
-
-/** Open signup: any verified Google account becomes a tenant with its own
- *  workspace. Off by default — a self-hosted install should not start
- *  accepting strangers because someone configured OAuth. */
-export const openSignup = () => /^(1|true|yes)$/i.test(env("OPEN_SIGNUP") ?? "");

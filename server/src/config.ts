@@ -26,3 +26,13 @@ export const config = {
 
 export const logsDir = () => path.join(config.dataDir, "logs");
 export const dbPath = () => path.join(config.dataDir, "agora.db");
+
+/** Open signup: any verified Google account becomes a tenant with its own
+ *  workspace and its own Claude credentials. Off by default — a self-hosted
+ *  install must not start accepting strangers because someone configured OAuth.
+ *
+ *  This flag is also what "multi-tenant mode" means everywhere else: with it on,
+ *  a session may only run as a tenant's own Claude identity, never the server's.
+ *  It lives in config rather than auth so that the credential resolver can read
+ *  it without importing the auth module. */
+export const openSignup = () => /^(1|true|yes)$/i.test(env("OPEN_SIGNUP") ?? "");

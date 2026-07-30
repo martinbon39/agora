@@ -12,6 +12,7 @@ import { broadcast, trackUserSocket } from "../events.js";
 import { getAuthUser, scopeAllows } from "../auth.js";
 import { withinRoot } from "../paths.js";
 import { configDirFor } from "../accounts.js";
+import { CredentialsRequired, claudeEnvFor } from "../tenants.js";
 
 /** Write a per-session launcher script; returns its path. */
 function writeLauncher(id: string, command: string): string {
@@ -112,6 +113,10 @@ export async function spawnSession(opts: {
     opts.accountConfigDir !== undefined
       ? opts.accountConfigDir
       : configDirFor(projectSettings.account(opts.cwd));
+  // Resolved BEFORE anything is written or spawned: on a shared install this
+  // throws CredentialsRequired when the tenant has not connected an Anthropic
+  // account, and a half-created session would be worse than a refusal.
+  const tenantEnv = claudeEnvFor(opts.cwd, opts.harness);
   let finalCommand = command;
   if (opts.harness === "claude" && !opts.command) {
     // Claude Code reports its state (working / waiting for approval / idle)
@@ -178,6 +183,9 @@ export async function spawnSession(opts: {
     env: {
       AGORA_SESSION_ID: id,
       ...(configDir ? { CLAUDE_CONFIG_DIR: configDir } : {}),
+      // last, so it wins: on a shared install the tenant's identity is the only
+      // correct one, and the per-project account feature must not override it
+      ...tenantEnv,
     },
   });
   sessions.insert(row);
@@ -194,6 +202,18 @@ function stripAnsi(s: string): string {
 }
 
 export async function sessionRoutes(app: FastifyInstance) {
+  // CredentialsRequired is a refusal, not a crash: answer 402 with the message
+  // the user needs to act on. Scoped to this plugin, and placed here rather than
+  // at each spawn site because there are already four of them (create, spawn,
+  // fork, revive) and the fifth should not have to remember.
+  app.setErrorHandler((err: unknown, _req, reply) => {
+    if (err instanceof CredentialsRequired) {
+      return reply.code(402).send({ error: err.message, needsCredentials: true });
+    }
+    const e = err as { statusCode?: number; message?: string };
+    reply.code(e.statusCode ?? 500).send({ error: e.message ?? "internal error" });
+  });
+
   // The owner dispatches a task into an agent's terminal (todo drag-drop). Same
   // governance as chat injection: idle agents only — mid-turn keystrokes race
   // the TUI, and a permission dialog must never receive an Enter.
@@ -327,6 +347,9 @@ export async function sessionRoutes(app: FastifyInstance) {
           ...(configDirFor(projectSettings.account(row.project_path))
             ? { CLAUDE_CONFIG_DIR: configDirFor(projectSettings.account(row.project_path))! }
             : {}),
+          // reviving is a spawn too: the same rule has to hold, or unarchiving
+          // would be a way to get a session running as the server
+          ...claudeEnvFor(row.project_path, row.harness),
         },
       });
       sessions.setStatus(row.id, "running");

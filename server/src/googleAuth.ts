@@ -6,10 +6,9 @@ import {
   invites,
   issueSessionFor,
   ownerDisplayName,
-  openSignup,
   requestOrigin,
 } from "./auth.js";
-import { env } from "./config.js";
+import { env, openSignup } from "./config.js";
 
 /**
  * "Sign in with Google". Three ways in, checked in this order:
