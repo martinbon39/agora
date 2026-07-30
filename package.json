@@ -34,6 +34,6 @@
     "dev:web": "npm run dev -w web",
     "build": "npm run build -w web && npm run build -w server",
     "start": "npm run start -w server",
-    "test": "npm run build -w server && node deploy/gate-canvas.mjs && node deploy/gate-chat.mjs && node deploy/gate-scope.mjs && node deploy/gate-accounts.mjs && node deploy/gate-peek.mjs && node deploy/gate-paths.mjs && node deploy/gate-tenants.mjs && node deploy/gate-credentials.mjs && node deploy/gate-hooktokens.mjs && node deploy/gate-plan.mjs && node deploy/gate-cost.mjs && node deploy/gate-rooms.mjs && node deploy/gate-spectate.mjs"
+    "test": "npm run build -w server && node deploy/gate-canvas.mjs && node deploy/gate-chat.mjs && node deploy/gate-scope.mjs && node deploy/gate-accounts.mjs && node deploy/gate-peek.mjs && node deploy/gate-paths.mjs && node deploy/gate-tenants.mjs && node deploy/gate-credentials.mjs && node deploy/gate-hooktokens.mjs && node deploy/gate-plan.mjs && node deploy/gate-cost.mjs && node deploy/gate-rooms.mjs && node deploy/gate-spectate.mjs && node deploy/gate-reel.mjs"
   }
 }

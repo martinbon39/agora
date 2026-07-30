@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useState } from "react";
 import { NodeResizer, type NodeProps } from "@xyflow/react";
-import { CircleDot, Hand, ListChecks, OctagonX, Plus, Radio, X } from "lucide-react";
+import { CircleDot, Clapperboard, Hand, ListChecks, OctagonX, Plus, Radio, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api, type PlanTask } from "@/api";
 import { serverEvents } from "@/events";
@@ -152,6 +152,18 @@ export const PlanNode = memo(function PlanNode({ id, selected }: NodeProps) {
               </span>
             )}
           </span>
+          {/* The reel: what this room built, assembled from git, the plan and the
+              transcripts. Behind the session cookie — it is the detailed version,
+              and the team shows it to judges themselves. */}
+          <button
+            title="What we built — commits, plan, who was working, spend"
+            onClick={() =>
+              window.open(`/api/reel?project=${encodeURIComponent(project)}`, "_blank", "noopener")
+            }
+            className="nodrag flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Clapperboard className="size-3.5" />
+          </button>
           {/* Publishing puts the room's shape — agents, plan, clock, cost — on a
               public URL. Never its terminals; see routes/spectate.ts. */}
           <button
