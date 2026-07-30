@@ -23,7 +23,7 @@ const PROJECTS = path.join(tmp, "projects");
 fs.mkdirSync(path.join(PROJECTS, "demo"), { recursive: true });
 fs.mkdirSync(DATA, { recursive: true });
 const PORT = 4590 + (process.pid % 100);
-const SOCK = path.join(DATA, "agora.sock");
+const SOCK = path.join(DATA, "sock", "agora.sock");
 const env = {
   ...process.env,
   AGORA_DATA_DIR: DATA,

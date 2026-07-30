@@ -8,7 +8,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
-import { config, env, openSignup } from "./config.js";
+import { config, openSignup, socketDir, socketPath } from "./config.js";
 import { initDb } from "./db.js";
 import { ensureTmuxServer } from "./tmux.js";
 import { sessionRoutes } from "./routes/sessions.js";
@@ -37,34 +37,33 @@ import { initPush, pushRoutes } from "./push.js";
 const app = Fastify({ logger: true });
 
 /**
- * Open signup means strangers run processes on this machine. Per-tenant
- * credentials and per-tenant projects are in place, but a session is still a
- * plain process under the server's own unix user, and two things follow from
- * that which no amount of application-level scoping fixes:
+ * Open signup means strangers run processes on this machine, so the operator has
+ * to say which isolation they are accepting. AGORA_SANDBOX is that statement:
  *
- *   1. The filesystem. An agent can read the operator's home — including
- *      agora's own database, its env file and its secrets. bwrap can close this
- *      (verified working unprivileged on the reference box: a tmpfs over /home
- *      with the tenant's workspace bound back makes the rest of the home
- *      disappear), but it is not wired in yet.
- *   2. The network. Sharing the network namespace leaves every loopback service
- *      reachable — on the reference box that included Caddy's admin API on
- *      :2019, unauthenticated, which is enough to rewrite the machine's routing.
- *      Unsharing it instead cuts the agent off from agora's own hook endpoint,
- *      so this needs a unix socket, not a flag.
+ *   bwrap  the filesystem is isolated. A tmpfs over the home removes agora's
+ *          database, its env file, the global hook secret and every other
+ *          tenant's credentials. The NETWORK is still shared — a session reaches
+ *          every service on loopback, which on a typical box includes a reverse
+ *          proxy's unauthenticated admin API. Better, not finished.
+ *   none   no isolation at all. Reasonable for a team where the strangers are
+ *          colleagues; not for a public URL.
  *
- * There is also the shared hook secret: one value, readable by anything running
- * as the user, so a sandboxed agent handed that file could act as any session.
- * Per-session tokens are the fix.
- *
- * So this refuses to boot rather than warn. A warning in a log is exactly what
- * gets missed, and the failure mode here is a stranger reading the operator's
- * credentials. AGORA_SANDBOX=none is the deliberate override, for a trusted
- * group where "strangers" are colleagues.
+ * Unset, it refuses to boot rather than warning. A warning in a log is exactly
+ * what gets missed, and the failure mode is a stranger reading the operator's
+ * credentials.
  */
 function assertSignupIsSafe() {
   if (!openSignup()) return;
-  if (process.env.AGORA_SANDBOX) return;
+  const mode = process.env.AGORA_SANDBOX;
+  if (mode === "bwrap") {
+    // Loud, because "sandboxed" reads as finished and this one is not.
+    app.log.warn(
+      "AGORA_SANDBOX=bwrap: sessions are filesystem-isolated, but the network " +
+        "namespace is shared — a session can still reach every service on loopback."
+    );
+    return;
+  }
+  if (mode) return; // an explicit choice, including "none"
   // stderr and exit, not throw: thrown here it goes through pino and the
   // operator gets the explanation as one JSON-escaped line with \n in it, which
   // is precisely the moment they most need to be able to read it.
@@ -73,16 +72,19 @@ function assertSignupIsSafe() {
       "",
       "  agora refuses to start.",
       "",
-      "  AGORA_OPEN_SIGNUP is on, but sessions are not sandboxed yet.",
+      "  AGORA_OPEN_SIGNUP is on, but AGORA_SANDBOX says nothing about how",
+      "  sessions are isolated. Pick one:",
       "",
-      "  A tenant's agent runs as this server's unix user. It can read the",
-      "  operator's home directory — agora's own database, its env file and its",
-      "  secrets — and it can reach every service on loopback. Per-tenant",
-      "  credentials and per-tenant projects do not change either of those.",
+      "    AGORA_SANDBOX=bwrap   isolate the filesystem. A session can no longer",
+      "                          read this account's home — agora's database, env",
+      "                          file, hook secret, other tenants' credentials.",
+      "                          The network is still shared: a session can reach",
+      "                          every service on loopback. Better, not finished.",
       "",
-      "  Set AGORA_SANDBOX=none to accept that and start anyway. That is a",
-      "  reasonable choice for a team where the strangers are colleagues, and",
-      "  not one for a public URL.",
+      "    AGORA_SANDBOX=none    no isolation. A session runs as this unix user",
+      "                          and can read everything it can. Reasonable for a",
+      "                          team where the strangers are colleagues, and not",
+      "                          for a public URL.",
       "",
     ].join("\n")
   );
@@ -203,7 +205,10 @@ async function main() {
   // Fastify listens once, so this is a second http.Server re-emitting onto the
   // first. `request` only: the hook API is plain HTTP, and the websocket
   // endpoints are the dashboard's, which arrives over TCP.
-  const sockPath = env("SOCKET") ?? path.join(config.dataDir, "agora.sock");
+  const sockPath = socketPath();
+  // 0700 on the directory: a sandboxed session is handed this directory, so it
+  // must contain the socket and nothing else
+  fs.mkdirSync(path.dirname(sockPath), { recursive: true, mode: 0o700 });
   // a stale socket from a killed process would make bind fail with EADDRINUSE
   try {
     fs.unlinkSync(sockPath);

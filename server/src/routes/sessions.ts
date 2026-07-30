@@ -14,13 +14,24 @@ import { actingSession, getAuthUser, scopeAllows } from "../auth.js";
 import { withinRoot } from "../paths.js";
 import { configDirFor } from "../accounts.js";
 import { CredentialsRequired, claudeEnvFor } from "../tenants.js";
+import { sandboxEnv, wrapCommand } from "../sandbox.js";
 
-/** Write a per-session launcher script; returns its path. */
-function writeLauncher(id: string, command: string): string {
+/** Write a per-session launcher script; returns its path.
+ *
+ *  The launcher itself stays outside the sandbox — it lives in agora's data dir,
+ *  which the sandbox deliberately does not mount. tmux reads it, bwrap is what it
+ *  execs. */
+function writeLauncher(
+  id: string,
+  command: string,
+  sandbox: { cwd: string; claudeConfigDir?: string | null }
+): string {
   const dir = path.join(config.dataDir, "launch");
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${id}.sh`);
-  fs.writeFileSync(file, `#!/usr/bin/env bash\nexec ${command}\n`, { mode: 0o700 });
+  fs.writeFileSync(file, `#!/usr/bin/env bash\nexec ${wrapCommand(command, sandbox)}\n`, {
+    mode: 0o700,
+  });
   return file;
 }
 
@@ -179,7 +190,10 @@ export async function spawnSession(opts: {
   }
   // Run through a per-session launcher script with a login shell: gets the
   // user's real PATH (~/.local/bin etc.) and avoids quoting pitfalls.
-  const launcher = writeLauncher(id, finalCommand);
+  const launcher = writeLauncher(id, finalCommand, {
+    cwd: opts.cwd,
+    claudeConfigDir: tenantEnv.CLAUDE_CONFIG_DIR ?? configDir,
+  });
   const row: SessionRow = {
     id,
     name,
@@ -200,6 +214,7 @@ export async function spawnSession(opts: {
     env: {
       AGORA_SESSION_ID: id,
       AGORA_SESSION_TOKEN: hookToken,
+      ...sandboxEnv(),
       ...(configDir ? { CLAUDE_CONFIG_DIR: configDir } : {}),
       // last, so it wins: on a shared install the tenant's identity is the only
       // correct one, and the per-project account feature must not override it
@@ -354,7 +369,12 @@ export async function sessionRoutes(app: FastifyInstance) {
           ? `claude --resume ${row.claude_session_id} --settings ${settingsFile}`
           : `claude --settings ${settingsFile}`;
       }
-      const launcher = writeLauncher(row.id, command);
+      const launcher = writeLauncher(row.id, command, {
+        cwd: row.project_path,
+        claudeConfigDir:
+          claudeEnvFor(row.project_path, row.harness).CLAUDE_CONFIG_DIR ??
+          configDirFor(projectSettings.account(row.project_path)),
+      });
       await tmux.createSession({
         id: row.id,
         cwd: row.project_path,
@@ -364,6 +384,7 @@ export async function sessionRoutes(app: FastifyInstance) {
           // reviving reuses the session's own token, minting one if the row
           // predates the column
           AGORA_SESSION_TOKEN: sessions.ensureHookToken(row.id),
+          ...sandboxEnv(),
           // a revived session must sign in as the same account it always did
           ...(configDirFor(projectSettings.account(row.project_path))
             ? { CLAUDE_CONFIG_DIR: configDirFor(projectSettings.account(row.project_path))! }

@@ -61,13 +61,18 @@ function secret() {
  */
 /** Which door request() would use — so an error can name the one that failed
  *  instead of always blaming a TCP port we may not have touched. */
+/** Must match config.ts socketPath(): its own directory, so that a sandboxed
+ *  session can be handed the directory rather than an inode that a server
+ *  restart invalidates. */
+const socketPath = () => env("SOCKET") ?? path.join(dataDir, "sock", "agora.sock");
+
 function where() {
-  const sock = env("SOCKET") ?? path.join(dataDir, "agora.sock");
+  const sock = socketPath();
   return fs.existsSync(sock) ? `socket ${sock}` : `port ${port}`;
 }
 
 function request(pathname, opts = {}) {
-  const sock = env("SOCKET") ?? path.join(dataDir, "agora.sock");
+  const sock = socketPath();
   const viaSocket = fs.existsSync(sock);
   const options = {
     method: opts.method ?? "GET",

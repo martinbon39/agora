@@ -25,6 +25,19 @@ export const config = {
 } as const;
 
 export const logsDir = () => path.join(config.dataDir, "logs");
+
+/** The agents' unix socket, in a directory OF ITS OWN.
+ *
+ *  The directory is not decoration. The server unlinks and recreates the socket
+ *  on every boot, which gives it a new inode — and a bind mount pins an inode.
+ *  A sandboxed session handed the FILE keeps a door onto the deleted socket
+ *  after a restart and fails with ECONNREFUSED forever, silently, while the
+ *  session itself survives the restart via the reconciliation path. Handing over
+ *  the DIRECTORY makes the recreate visible through the bind, and still exposes
+ *  nothing else: the database, the env file and the global hook secret stay one
+ *  level up. */
+export const socketDir = () => path.join(config.dataDir, "sock");
+export const socketPath = () => env("SOCKET") ?? path.join(socketDir(), "agora.sock");
 export const dbPath = () => path.join(config.dataDir, "agora.db");
 
 /** Open signup: any verified Google account becomes a tenant with its own
