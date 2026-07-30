@@ -348,6 +348,11 @@ export function requireAuth(app: FastifyInstance) {
     if (!isProtected) return; // SPA assets: public, they contain no secrets
     if (url.startsWith("/api/auth/")) return;
     if (url === "/api/version") return; // build hash — harmless, needed pre-reload
+    // The one endpoint that answers without a session: an opt-in, owner-minted,
+    // read-only room view. What it may expose is fixed in routes/spectate.ts —
+    // this line only says the cookie is not required. The prefix is exact so
+    // /api/spectate itself (mint/read the token) stays behind the wall.
+    if (url.startsWith("/api/spectate/")) return;
     if (url.startsWith("/ws/bridge")) return; // token-checked in its own handler
     if (url.startsWith("/api/hooks/") && hookCaller(req)) return;
     // CSRF hardening: content in sandboxed/proxied iframes (opaque origin) and

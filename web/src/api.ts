@@ -249,6 +249,16 @@ export const api = {
       body: JSON.stringify({ audio: audioBase64, mime }),
       signal: AbortSignal.timeout(45000), // a hung transcription must not wedge the mic UI
     }).then((r) => json<{ text: string }>(r)),
+  spectateToken: (project: string) =>
+    fetch(`/api/spectate?project=${encodeURIComponent(project)}`).then((r) =>
+      json<{ token: string | null }>(r)
+    ),
+  setSpectate: (project: string, enabled: boolean) =>
+    fetch("/api/spectate", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project, enabled }),
+    }).then((r) => json<{ token: string | null }>(r)),
   room: (project: string) =>
     fetch(`/api/room?project=${encodeURIComponent(project)}`).then((r) =>
       json<{

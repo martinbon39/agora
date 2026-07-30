@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useState } from "react";
 import { NodeResizer, type NodeProps } from "@xyflow/react";
-import { CircleDot, Hand, ListChecks, OctagonX, Plus, X } from "lucide-react";
+import { CircleDot, Hand, ListChecks, OctagonX, Plus, Radio, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api, type PlanTask } from "@/api";
 import { serverEvents } from "@/events";
@@ -40,6 +40,7 @@ export const PlanNode = memo(function PlanNode({ id, selected }: NodeProps) {
   const [spend, setSpend] = useState<number | null>(null);
   const [unpriced, setUnpriced] = useState(0);
   const [leftMs, setLeftMs] = useState<number | null>(null);
+  const [share, setShare] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     api
@@ -70,6 +71,10 @@ export const PlanNode = memo(function PlanNode({ id, selected }: NodeProps) {
         .catch(() => {});
     poll();
     pollRoom();
+    api
+      .spectateToken(project)
+      .then(({ token }) => !cancelled && setShare(token))
+      .catch(() => {});
     // derived from transcripts on disk, so a poll is a file read, not a counter
     const timer = setInterval(() => {
       poll();
@@ -147,6 +152,31 @@ export const PlanNode = memo(function PlanNode({ id, selected }: NodeProps) {
               </span>
             )}
           </span>
+          {/* Publishing puts the room's shape — agents, plan, clock, cost — on a
+              public URL. Never its terminals; see routes/spectate.ts. */}
+          <button
+            title={
+              share
+                ? "Published. Click to revoke the public link."
+                : "Publish a read-only view: agents, plan, clock and cost. Never the terminals."
+            }
+            onClick={() => {
+              const next = !share;
+              api
+                .setSpectate(project, next)
+                .then(({ token }) => {
+                  setShare(token);
+                  if (token) navigator.clipboard?.writeText(`${location.origin}/s/${token}`).catch(() => {});
+                })
+                .catch(() => {});
+            }}
+            className={cn(
+              "nodrag flex size-6 items-center justify-center rounded-md transition-colors hover:bg-accent",
+              share ? "text-emerald-400" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Radio className="size-3.5" />
+          </button>
           <button
             title="Close"
             onClick={() => ctx.removeNode(id)}

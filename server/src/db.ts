@@ -129,6 +129,9 @@ export function initDb(): Database.Database {
     `ALTER TABLE projects ADD COLUMN deadline INTEGER`,
     `ALTER TABLE projects ADD COLUMN expires_at INTEGER`,
     `ALTER TABLE projects ADD COLUMN expired_at INTEGER`,
+    // Opt-in public read-only link. Null = not published, and null is the
+    // default; clearing it revokes.
+    `ALTER TABLE projects ADD COLUMN spectator_token TEXT`,
   ]) {
     try {
       db.exec(ddl);
@@ -411,6 +414,8 @@ export interface ProjectRow {
   expires_at?: number | null;
   /** When the release actually happened, so the sweep is idempotent. */
   expired_at?: number | null;
+  /** Opt-in public read-only link. See routes/spectate.ts for what it exposes. */
+  spectator_token?: string | null;
 }
 
 export const users = {
@@ -481,6 +486,17 @@ export const projects = {
           WHERE expires_at IS NOT NULL AND expires_at <= ? AND expired_at IS NULL`
       )
       .all(now) as ProjectRow[];
+  },
+  setSpectatorToken(projectPath: string, token: string | null) {
+    db.prepare(`UPDATE projects SET spectator_token = ? WHERE path = ?`).run(token, projectPath);
+  },
+  /** Resolve a published room from its token. An empty token matches nothing —
+   *  otherwise every unpublished room would answer to "". */
+  bySpectatorToken(token: string): ProjectRow | undefined {
+    if (!token) return undefined;
+    return db.prepare(`SELECT * FROM projects WHERE spectator_token = ?`).get(token) as
+      | ProjectRow
+      | undefined;
   },
   markExpired(projectPath: string, now = Date.now()) {
     db.prepare(`UPDATE projects SET expired_at = ? WHERE path = ?`).run(now, projectPath);
