@@ -170,6 +170,12 @@ export const PlanNode = memo(function PlanNode({ id, selected }: NodeProps) {
                         {t.note && <span className="text-rose-300/70"> — {t.note}</span>}
                       </span>
                     )}
+                    {/* A finished task's note is the handoff its holder left. It is
+                        the most valuable line on the plan — what someone learned —
+                        so it stays visible rather than being hidden with the row. */}
+                    {t.status === "done" && t.note && (
+                      <span className="text-[10px] text-muted-foreground/70">{t.note}</span>
+                    )}
                   </div>
                   <button
                     title="Remove from the plan"

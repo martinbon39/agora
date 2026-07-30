@@ -496,6 +496,26 @@ export const plan = {
    * cannot be two statements. Re-claiming a task you already hold succeeds, so a
    * retry after a lost connection is not an error.
    */
+  /** Take a task AND collect what the previous holder left behind, in one
+   *  transaction.
+   *
+   *  Reading the note and clearing it have to be atomic with the claim itself.
+   *  Doing the read just before the update happens to work — better-sqlite3 is
+   *  synchronous and nothing awaits in between — but that is the code's shape
+   *  holding the guarantee rather than the database, and the next edit breaks it
+   *  without a sound. */
+  claimWith(
+    id: number,
+    sessionId: string,
+    sessionName: string
+  ): { ok: boolean; inherited: string | null } {
+    const run = db.transaction(() => {
+      const before = this.get(id);
+      const ok = this.claim(id, sessionId, sessionName);
+      return { ok, inherited: ok ? (before?.note ?? null) : null };
+    });
+    return run();
+  },
   claim(id: number, sessionId: string, sessionName: string): boolean {
     const { changes } = db
       .prepare(
@@ -524,13 +544,21 @@ export const plan = {
       .run(Date.now(), id, sessionId);
     return changes > 0;
   },
-  finish(id: number, sessionId: string): boolean {
+  /** Finish a task, optionally leaving behind what the next person needs to know.
+   *
+   *  The note lives on the TASK rather than being sent to somebody, because the
+   *  reader usually does not exist yet: `agora send` needs a live linked session,
+   *  and what a holder learned has to survive its own session ending. Whoever
+   *  claims this task next inherits it. */
+  finish(id: number, sessionId: string, note?: string): boolean {
     const { changes } = db
       .prepare(
-        `UPDATE plan_tasks SET status = 'done', updated_at = ?
-          WHERE id = ? AND claimed_by = ?`
+        `UPDATE plan_tasks
+            SET status = 'done', updated_at = @now,
+                note = COALESCE(@note, note)
+          WHERE id = @id AND claimed_by = @sid`
       )
-      .run(Date.now(), id, sessionId);
+      .run({ id, sid: sessionId, now: Date.now(), note: note?.slice(0, 500) ?? null });
     return changes > 0;
   },
   block(id: number, sessionId: string, note: string): boolean {

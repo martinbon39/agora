@@ -61,7 +61,7 @@ export async function planRoutes(app: FastifyInstance) {
 
     switch (body.action) {
       case "claim": {
-        const ok = plan.claim(id, me.id, me.name);
+        const { ok, inherited } = plan.claimWith(id, me.id, me.name);
         if (!ok) {
           return reply.code(409).send({
             error: `task ${id} is held by ${plan.get(id)?.claimed_by_name ?? "someone else"}`,
@@ -69,7 +69,11 @@ export async function planRoutes(app: FastifyInstance) {
           });
         }
         touched();
-        return { task: plan.get(id) };
+        // `inherited` is what the previous holder left on the task — a blocked
+        // reason, or a handoff written when they finished it. It is returned
+        // here rather than pushed to anyone, because the reader is whoever
+        // happens to claim next and may not have existed at the time.
+        return { task: plan.get(id), inherited };
       }
       case "done":
       case "drop":
@@ -80,7 +84,7 @@ export async function planRoutes(app: FastifyInstance) {
         }
         const ok =
           body.action === "done"
-            ? plan.finish(id, me.id)
+            ? plan.finish(id, me.id, note || undefined)
             : body.action === "drop"
               ? plan.drop(id, me.id)
               : plan.block(id, me.id, note);

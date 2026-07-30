@@ -454,13 +454,18 @@ async function planCmd(argv) {
   const id = Number(rest[0]);
   if (!Number.isInteger(id)) fail(`usage: agora plan ${sub} <id>`);
   if (sub === "claim") {
-    const { task } = await call({ session, action: "claim", id });
+    const { task, inherited } = await call({ session, action: "claim", id });
     console.log(`you hold ${task.id}: ${task.title}`);
+    // whatever the previous holder left behind — read it before starting, it is
+    // the only thing that survived their session
+    if (inherited) console.log(`  handed over: ${inherited}`);
     return;
   }
   if (sub === "done") {
-    const { task } = await call({ session, action: "done", id });
+    const note = rest.slice(1).join(" ").trim();
+    const { task } = await call({ session, action: "done", id, note });
     console.log(`done ${task.id}: ${task.title}`);
+    if (note) console.log(`  left for whoever picks this up: ${note}`);
     return;
   }
   if (sub === "drop") {
@@ -527,7 +532,8 @@ async function main() {
           "                                                 summon a sub-agent session (canvas-linked)",
           "  agora plan                                     the shared plan: who is doing what",
           '  agora plan add "<what needs doing>"            add a task',
-          "  agora plan claim|done|drop <id>                take a task, finish it, or let it go",
+          "  agora plan claim|drop <id>                     take a task, or let it go",
+          '  agora plan done <id> ["what to know"]          finish it, leaving a handoff behind',
           '  agora plan block <id> "<why>"                  say it is stuck, and why',
           "  agora artifact <file> [--name <name>]          publish an artifact, print its URL",
           "  agora pc <ls|get> <path>                       browse/fetch files from the owner's PC",

@@ -203,6 +203,46 @@ check(
   `${dashOther.statusCode}`
 );
 
+// ---- the handoff outlives the session that wrote it --------------------
+// `agora send` needs a live, linked recipient. What a holder learned has to
+// reach whoever picks the work up next — who usually does not exist yet — so it
+// lives on the TASK, not on the channel.
+const H = JSON.parse((await act(tokenA, { action: "add", title: "port the parser" })).body).task.id;
+await act(tokenA, { action: "claim", id: H });
+await act(tokenA, { action: "done", id: H, note: "the lexer tests are the slow part; run them alone" });
+check(
+  "finishing a task can leave a note behind",
+  plan.get(H).note === "the lexer tests are the slow part; run them alone",
+  String(plan.get(H).note)
+);
+check("REFUSED: and the task is genuinely done, not reopened by the note", plan.get(H).status === "done");
+
+const H2 = JSON.parse((await act(tokenA, { action: "add", title: "port the emitter" })).body).task.id;
+await act(tokenA, { action: "claim", id: H2 });
+await act(tokenA, { action: "block", id: H2, note: "waiting on the schema" });
+const takeover2 = await act(tokenB, { action: "claim", id: H2 });
+check(
+  "claiming a task hands the previous holder's note to the new one",
+  JSON.parse(takeover2.body).inherited === "waiting on the schema",
+  JSON.parse(takeover2.body).inherited
+);
+check(
+  "REFUSED: and it is cleared afterwards, so a stale reason cannot be read as current",
+  plan.get(H2).note === null,
+  String(plan.get(H2).note)
+);
+const fresh = JSON.parse((await act(tokenA, { action: "add", title: "nothing inherited" })).body).task.id;
+check(
+  "a task nobody has held hands over nothing — the positive control",
+  JSON.parse((await act(tokenA, { action: "claim", id: fresh })).body).inherited === null
+);
+const refused = await act(tokenB, { action: "claim", id: fresh });
+check(
+  "REFUSED: a refused claim hands over nothing either — it would leak the note to a non-holder",
+  refused.statusCode === 409 && JSON.parse(refused.body).inherited === undefined,
+  `${refused.statusCode}`
+);
+
 // ---- atomicity, for real ----------------------------------------------
 // Everything above is SEQUENTIAL, so it proves exclusivity and not atomicity: a
 // naive read-then-write would pass all of it, because by the time the second
