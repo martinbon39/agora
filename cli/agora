@@ -386,6 +386,98 @@ async function chatHook() {
   }
 }
 
+/** The shared plan: the one place humans and agents agree on who is doing what.
+ *
+ *  `agora plan` shows it. Everything else takes a task id. Claiming is what
+ *  makes the plan more than a list — a task has exactly one holder, so two
+ *  agents cannot both start the same work, which is the failure a prose board
+ *  cannot prevent. */
+async function planCmd(argv) {
+  const { flags, positional } = parseArgs(argv);
+  const session = flags.session ?? env("SESSION_ID");
+  if (!session) fail("AGORA_SESSION_ID missing — run inside an agora session (or pass --session)");
+  const [sub, ...rest] = positional;
+  const url = `http://127.0.0.1:${port}/api/hooks/plan`;
+  const headers = { "X-Agora-Hook": secret(), "Content-Type": "application/json" };
+
+  const show = (tasks, meId) => {
+    if (!tasks.length) {
+      console.log("the plan is empty — `agora plan add \"<what needs doing>\"`");
+      return;
+    }
+    const mark = { open: "  ", claimed: "->", blocked: "!!", done: "ok" };
+    for (const t of tasks) {
+      const who =
+        t.status === "claimed" || t.status === "blocked"
+          ? t.claimed_by === meId
+            ? " (you)"
+            : ` (${t.claimed_by_name})`
+          : "";
+      const note = t.note ? ` — ${t.note}` : "";
+      console.log(`${mark[t.status] ?? "  "} ${String(t.id).padStart(3)}  ${t.title}${who}${note}`);
+    }
+  };
+
+  const call = async (payload) => {
+    let res;
+    try {
+      res = await fetch(url, { method: "POST", headers, body: JSON.stringify(payload) });
+    } catch (err) {
+      fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    }
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) fail(out.error ?? `server answered ${res.status}`);
+    return out;
+  };
+
+  if (!sub || sub === "ls") {
+    let res;
+    try {
+      res = await fetch(`${url}?session=${encodeURIComponent(session)}`, { headers });
+    } catch (err) {
+      fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    }
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) fail(out.error ?? `server answered ${res.status}`);
+    show(out.tasks ?? [], out.me?.id);
+    return;
+  }
+
+  if (sub === "add") {
+    const title = rest.join(" ").trim();
+    if (!title) fail('usage: agora plan add "<what needs doing>"');
+    const { task } = await call({ session, action: "add", title });
+    console.log(`added ${task.id}: ${task.title}`);
+    return;
+  }
+
+  const id = Number(rest[0]);
+  if (!Number.isInteger(id)) fail(`usage: agora plan ${sub} <id>`);
+  if (sub === "claim") {
+    const { task } = await call({ session, action: "claim", id });
+    console.log(`you hold ${task.id}: ${task.title}`);
+    return;
+  }
+  if (sub === "done") {
+    const { task } = await call({ session, action: "done", id });
+    console.log(`done ${task.id}: ${task.title}`);
+    return;
+  }
+  if (sub === "drop") {
+    const { task } = await call({ session, action: "drop", id });
+    console.log(`released ${task.id}: ${task.title}`);
+    return;
+  }
+  if (sub === "block") {
+    const note = rest.slice(1).join(" ").trim();
+    if (!note) fail('usage: agora plan block <id> "<why>"');
+    const { task } = await call({ session, action: "block", id, note });
+    console.log(`blocked ${task.id}: ${task.title} — ${note}`);
+    return;
+  }
+  fail("usage: agora plan [ls|add|claim|done|drop|block]");
+}
+
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2);
   switch (cmd) {
@@ -418,6 +510,9 @@ async function main() {
     case "pc":
       await pc(rest);
       break;
+    case "plan":
+      await planCmd(rest);
+      break;
     default:
       console.log(
         [
@@ -430,6 +525,10 @@ async function main() {
           "  agora read [name] [--terminal|--full]          read a LINKED session without waking it",
           "  agora spawn <prompt…> [--model m] [--harness h] [--name n]",
           "                                                 summon a sub-agent session (canvas-linked)",
+          "  agora plan                                     the shared plan: who is doing what",
+          '  agora plan add "<what needs doing>"            add a task',
+          "  agora plan claim|done|drop <id>                take a task, finish it, or let it go",
+          '  agora plan block <id> "<why>"                  say it is stuck, and why',
           "  agora artifact <file> [--name <name>]          publish an artifact, print its URL",
           "  agora pc <ls|get> <path>                       browse/fetch files from the owner's PC",
         ].join("\n")

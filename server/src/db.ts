@@ -95,6 +95,23 @@ export function initDb(): Database.Database {
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS projects_owner ON projects(owner_email);
+    -- The shared plan: the one object humans and agents both read and write.
+    -- The board is prose and append-only, which makes it easy to ignore; the
+    -- failure it does not prevent is two agents independently building the same
+    -- thing. A task can be HELD, by exactly one session, and that is the whole
+    -- point of the table.
+    CREATE TABLE IF NOT EXISTS plan_tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_path TEXT NOT NULL,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      claimed_by TEXT,
+      claimed_by_name TEXT,
+      note TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS plan_project ON plan_tasks(project_path);
   `);
   for (const ddl of [
     `ALTER TABLE sessions ADD COLUMN claude_session_id TEXT`,
@@ -431,5 +448,101 @@ export const projects = {
   },
   remove(projectPath: string) {
     db.prepare(`DELETE FROM projects WHERE path = ?`).run(projectPath);
+  },
+};
+
+export interface PlanTaskRow {
+  id: number;
+  project_path: string;
+  title: string;
+  status: "open" | "claimed" | "done" | "blocked";
+  claimed_by: string | null;
+  claimed_by_name: string | null;
+  note: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export const plan = {
+  list(project_path: string): PlanTaskRow[] {
+    return db
+      .prepare(
+        `SELECT * FROM plan_tasks WHERE project_path = ?
+         ORDER BY CASE status WHEN 'blocked' THEN 0 WHEN 'claimed' THEN 1
+                              WHEN 'open' THEN 2 ELSE 3 END, id`
+      )
+      .all(project_path) as PlanTaskRow[];
+  },
+  get(id: number): PlanTaskRow | undefined {
+    return db.prepare(`SELECT * FROM plan_tasks WHERE id = ?`).get(id) as PlanTaskRow | undefined;
+  },
+  add(project_path: string, title: string): PlanTaskRow {
+    const now = Date.now();
+    const { lastInsertRowid } = db
+      .prepare(
+        `INSERT INTO plan_tasks (project_path, title, status, created_at, updated_at)
+         VALUES (?, ?, 'open', ?, ?)`
+      )
+      .run(project_path, title, now, now);
+    return this.get(Number(lastInsertRowid))!;
+  },
+  /**
+   * Take a task, if it is takeable. One statement, and the caller checks whether
+   * it changed a row.
+   *
+   * This is the only interesting query in the file. Read-then-write would let two
+   * agents polling a second apart both see 'open' and both start working — which
+   * is the exact failure the plan exists to prevent, so the check and the write
+   * cannot be two statements. Re-claiming a task you already hold succeeds, so a
+   * retry after a lost connection is not an error.
+   */
+  claim(id: number, sessionId: string, sessionName: string): boolean {
+    const { changes } = db
+      .prepare(
+        // Parenthesised deliberately. Without the inner brackets, AND binding
+        // tighter than OR still happens to give the right answer here, which is
+        // the worst kind of correct: the next edit breaks it silently.
+        // A blocked task IS claimable by someone else — blocked means the holder
+        // cannot proceed, so being taken over is the useful outcome.
+        `UPDATE plan_tasks
+            SET status = 'claimed', claimed_by = @sid, claimed_by_name = @name,
+                note = NULL, updated_at = @now
+          WHERE id = @id
+            AND status != 'done'
+            AND (status IN ('open', 'blocked') OR claimed_by = @sid)`
+      )
+      .run({ id, sid: sessionId, name: sessionName, now: Date.now() });
+    return changes > 0;
+  },
+  /** Release a claim without finishing. */
+  drop(id: number, sessionId: string): boolean {
+    const { changes } = db
+      .prepare(
+        `UPDATE plan_tasks SET status = 'open', claimed_by = NULL, claimed_by_name = NULL,
+                updated_at = ? WHERE id = ? AND claimed_by = ?`
+      )
+      .run(Date.now(), id, sessionId);
+    return changes > 0;
+  },
+  finish(id: number, sessionId: string): boolean {
+    const { changes } = db
+      .prepare(
+        `UPDATE plan_tasks SET status = 'done', updated_at = ?
+          WHERE id = ? AND claimed_by = ?`
+      )
+      .run(Date.now(), id, sessionId);
+    return changes > 0;
+  },
+  block(id: number, sessionId: string, note: string): boolean {
+    const { changes } = db
+      .prepare(
+        `UPDATE plan_tasks SET status = 'blocked', note = ?, updated_at = ?
+          WHERE id = ? AND claimed_by = ?`
+      )
+      .run(note.slice(0, 500), Date.now(), id, sessionId);
+    return changes > 0;
+  },
+  remove(id: number, project_path: string) {
+    db.prepare(`DELETE FROM plan_tasks WHERE id = ? AND project_path = ?`).run(id, project_path);
   },
 };

@@ -25,6 +25,7 @@ import { uploadRoutes, uploadsDir } from "./routes/uploads.js";
 import { inviteRoutes } from "./routes/invites.js";
 import { bridgeRoutes, bridgeSecret } from "./bridge.js";
 import { tenantRoutes } from "./routes/tenant.js";
+import { planRoutes } from "./routes/plan.js";
 import { initAuthDb, authRoutes, requireAuth, hookSecret } from "./auth.js";
 import { googleAuthRoutes } from "./googleAuth.js";
 import { initPush, pushRoutes } from "./push.js";
@@ -121,6 +122,7 @@ async function main() {
   await app.register(inviteRoutes);
   await app.register(bridgeRoutes);
   await app.register(tenantRoutes);
+  await app.register(planRoutes);
 
   // pasted/dropped files (auth-gated in requireAuth, like /artifacts)
   fs.mkdirSync(uploadsDir(), { recursive: true });

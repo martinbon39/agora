@@ -151,6 +151,15 @@ export async function spawnSession(opts: {
       `\`agora read\` with no name lists who you are linked to; ` +
       `(5) always READ before you SEND — reading costs you a turn and them nothing, sending costs ` +
       `them theirs. Send only what only they can answer, never to inform; ` +
+      `(5b) THE PLAN. \`agora plan\` is the shared list of what this project needs, and it is the ` +
+      `one thing humans and every other agent here read too. Before you start a piece of work, ` +
+      `\`agora plan claim <id>\` it — a task has exactly one holder, so if the claim is refused ` +
+      `somebody is already on it and you must pick something else rather than duplicate them. ` +
+      `Never work on an unclaimed task: two agents inventing overlapping mechanisms for the same ` +
+      `job is the most expensive way this fleet fails, and it is not visible until both are done. ` +
+      `\`agora plan add "<what needs doing>"\` when you discover work that is not listed, ` +
+      `\`agora plan done <id>\` when it is finished, and \`agora plan block <id> "<why>"\` the moment ` +
+      `you are stuck — a blocked task can be taken over, a silently abandoned one cannot; ` +
       `(6) when a message is relayed into your terminal, answer only if you are genuinely the ` +
       `right one to, then end your turn and resume your own task — do not acknowledge for the ` +
       `sake of it, and never copy @ mentions quoted inside instructions; ` +
