@@ -48,4 +48,22 @@ export const dbPath = () => path.join(config.dataDir, "agora.db");
  *  a session may only run as a tenant's own Claude identity, never the server's.
  *  It lives in config rather than auth so that the credential resolver can read
  *  it without importing the auth module. */
+/** How many live sessions one tenant may hold at once.
+ *
+ *  Measured on the reference box: a live `claude` session is ~576 MB RSS, and
+ *  5.1 GB was available on a 4-core machine — about eight sessions before it
+ *  falls over, and that is before any agent runs a build. Nothing capped this:
+ *  /api/hooks/spawn pins the PARENT to the caller's token, so nobody can plant a
+ *  sub-agent in someone else's project, but the NUMBER was unbounded, and the
+ *  rate limiter exempts everything outside /api/auth/. A loop on `agora spawn`
+ *  takes the box down for every tenant in seconds — no attacker required.
+ *
+ *  Six is deliberately below what the hardware survives: the cap that matters is
+ *  the one that leaves room for the other tenants, not the one that fills the
+ *  machine. */
+export const sessionsPerTenant = () => {
+  const n = Number(env("MAX_SESSIONS_PER_TENANT") ?? 6);
+  return Number.isFinite(n) && n > 0 ? n : 6;
+};
+
 export const openSignup = () => /^(1|true|yes)$/i.test(env("OPEN_SIGNUP") ?? "");

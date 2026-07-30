@@ -7,6 +7,7 @@ import { api, type AuthUser } from "../api";
 import { Logo } from "../components/Logo";
 import { Button } from "../components/ui/button";
 import { UserCtx } from "./userContext";
+import { Landing } from "../marketing/Landing";
 import googleSvg from "../assets/brands/google.svg?raw";
 
 async function postJson(path: string, body?: object) {
@@ -33,6 +34,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
   // the Google callback lands non-invited accounts here
   const [denied, setDenied] = useState(location.hash === "#denied");
   const enrollToken = registerTokenFromHash();
+  // An anonymous visitor gets the landing page; the sign-in card is one click
+  // away. An enrolment link or a denied callback skips it — both are people who
+  // already know what this is and are mid-flow.
+  const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
     api
@@ -115,6 +120,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
       </div>
     );
   }
+
+  if (!showAuth && !enrollToken) return <Landing onSignIn={() => setShowAuth(true)} />;
 
   return (
     <div className="flex h-full items-center justify-center p-4">

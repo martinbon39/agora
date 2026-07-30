@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { config, openSignup } from "./config.js";
-import { projects } from "./db.js";
+import { config, openSignup, sessionsPerTenant } from "./config.js";
+import { projects, sessions } from "./db.js";
 import { workspaceSlug } from "./paths.js";
 
 /**
@@ -20,6 +20,13 @@ import { workspaceSlug } from "./paths.js";
  * resolver either returns the tenant's own identity or refuses to start the
  * session. There is no third branch.
  */
+
+export class QuotaExceeded extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "QuotaExceeded";
+  }
+}
 
 export class CredentialsRequired extends Error {
   constructor(message: string) {
@@ -138,4 +145,37 @@ export function claudeConfigDirOf(projectPath: string, accountConfigDir: string 
   }
   if (accountConfigDir) return accountConfigDir;
   return process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude");
+}
+
+/**
+ * Refuse to start a session when its tenant already holds their allowance.
+ *
+ * /api/hooks/spawn pins the PARENT to the caller's token, so no one can plant a
+ * sub-agent in someone else's project — but nothing limited the NUMBER, and the
+ * rate limiter exempts every path outside /api/auth/ (measured: 40 spawns, no
+ * 429). One loop takes the machine down for every other tenant, which makes this
+ * the first thing that breaks on a shared box, well before anything adversarial.
+ *
+ * Counted across ALL of the tenant's projects, not per project: the constraint is
+ * RAM on one machine, and a tenant with five projects has the same eight-session
+ * ceiling as a tenant with one.
+ *
+ * Only in multi-tenant mode. A personal install runs as many agents as its owner
+ * wants — capping their own cockpit to protect them from themselves is not this
+ * feature's job.
+ */
+export function assertSessionQuota(projectPath: string) {
+  if (!openSignup()) return;
+  const owner = tenantOf(projectPath);
+  if (!owner) return; // an unregistered project is refused elsewhere, on ownership
+  const mine = new Set(projects.forOwner(owner).map((p) => p.path));
+  const live = sessions
+    .all()
+    .filter((s) => s.status === "running" && s.archived_at == null && mine.has(s.project_path));
+  const cap = sessionsPerTenant();
+  if (live.length >= cap) {
+    throw new QuotaExceeded(
+      `you already have ${live.length} sessions running (limit ${cap}) — close one before starting another`
+    );
+  }
 }

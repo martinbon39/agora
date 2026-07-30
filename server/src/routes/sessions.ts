@@ -13,7 +13,7 @@ import { broadcast, trackUserSocket } from "../events.js";
 import { actingSession, getAuthUser, scopeAllows } from "../auth.js";
 import { withinRoot } from "../paths.js";
 import { configDirFor } from "../accounts.js";
-import { CredentialsRequired, claudeEnvFor } from "../tenants.js";
+import { CredentialsRequired, QuotaExceeded, assertSessionQuota, claudeEnvFor } from "../tenants.js";
 import { sandboxEnv, wrapCommand } from "../sandbox.js";
 
 /** Write a per-session launcher script; returns its path.
@@ -125,9 +125,9 @@ export async function spawnSession(opts: {
     opts.accountConfigDir !== undefined
       ? opts.accountConfigDir
       : configDirFor(projectSettings.account(opts.cwd));
-  // Resolved BEFORE anything is written or spawned: on a shared install this
-  // throws CredentialsRequired when the tenant has not connected an Anthropic
-  // account, and a half-created session would be worse than a refusal.
+  // Both checks happen BEFORE anything is written or spawned, for the same
+  // reason: a half-created session is worse than a refusal.
+  assertSessionQuota(opts.cwd);
   const tenantEnv = claudeEnvFor(opts.cwd, opts.harness);
   // Minted before the tmux session exists, because it has to go into its
   // environment: the CLI inside reads it from there and never touches the
@@ -242,6 +242,9 @@ export async function sessionRoutes(app: FastifyInstance) {
   app.setErrorHandler((err: unknown, _req, reply) => {
     if (err instanceof CredentialsRequired) {
       return reply.code(402).send({ error: err.message, needsCredentials: true });
+    }
+    if (err instanceof QuotaExceeded) {
+      return reply.code(429).send({ error: err.message, quota: true });
     }
     const e = err as { statusCode?: number; message?: string };
     reply.code(e.statusCode ?? 500).send({ error: e.message ?? "internal error" });

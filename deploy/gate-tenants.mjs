@@ -242,6 +242,75 @@ check(
   (await getCanvas(guest, A)).statusCode === 401
 );
 
+// ---- one tenant cannot take the machine from the others -----------------
+// /api/hooks/spawn pins the PARENT to the caller's token, so nobody plants a
+// sub-agent in someone else's project — but nothing limited the NUMBER, and the
+// rate limiter exempts everything outside /api/auth/ (measured: 40 spawns, zero
+// 429). A live claude session is ~576 MB; one loop ends the party for everyone.
+process.env.AGORA_OPEN_SIGNUP = "1";
+process.env.AGORA_MAX_SESSIONS_PER_TENANT = "2";
+const { assertSessionQuota, QuotaExceeded } = await import("../server/dist/tenants.js");
+const quota = (project) => {
+  try {
+    assertSessionQuota(project);
+    return null;
+  } catch (e) {
+    return e instanceof QuotaExceeded ? e.message : `wrong error: ${e}`;
+  }
+};
+
+// alice holds one live session (s-alice), so she is under a cap of two
+check("a tenant under the cap may start another session", quota(A) === null);
+
+const extra = (id, project) =>
+  sessions.insert({
+    id, name: id, project_path: project, harness: "claude", command: "claude",
+    status: "running", agent_state: "idle", created_at: Date.now(), last_activity: Date.now(),
+  });
+extra("s-alice-2", A);
+check(
+  "REFUSED: at the cap, another session is refused with a message that says what to do",
+  /limit 2/.test(quota(A) ?? ""),
+  quota(A) ?? "it allowed the session"
+);
+check(
+  "REFUSED: and bob is unaffected — the cap is per tenant, not per machine",
+  quota(B) === null,
+  quota(B) ?? "ok"
+);
+
+// the count spans the tenant's projects: the constraint is RAM on one box
+const A2 = path.join(workspaceRoot(ALICE), "second");
+fs.mkdirSync(A2, { recursive: true });
+projects.insert({ path: A2, name: "second", owner_email: ALICE });
+check(
+  "REFUSED: a second project does not reset the allowance — the limit is the machine, not the folder",
+  /limit 2/.test(quota(A2) ?? ""),
+  quota(A2) ?? "it allowed the session"
+);
+
+// archived and exited sessions hold no memory, so they must not count
+sessions.setStatus("s-alice-2", "exited");
+check(
+  "an exited session frees the slot — a cap that counted corpses would strand a tenant",
+  quota(A) === null,
+  quota(A) ?? "ok"
+);
+sessions.setStatus("s-alice-2", "running");
+sessions.setArchived("s-alice-2", Date.now());
+check("and an archived one likewise", quota(A) === null, quota(A) ?? "ok");
+sessions.setArchived("s-alice-2", null);
+
+delete process.env.AGORA_OPEN_SIGNUP;
+check(
+  "REFUSED: with multi-tenant mode off there is no cap — a personal cockpit runs as many agents as its owner wants",
+  quota(A) === null,
+  // the detail must describe what HAPPENED, not what would have been wrong: the
+  // previous wording printed "it capped a single-user install" on success
+  quota(A) === null ? "no cap applied" : "capped: " + quota(A)
+);
+process.env.AGORA_OPEN_SIGNUP = "1";
+
 // ---- workspace roots are injective -------------------------------------
 // readable slugs collide: a@b.c and a-b.c both reduce to a-b-c, and a collision
 // here means two tenants sharing a directory
