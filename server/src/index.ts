@@ -7,7 +7,8 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { config, openSignup } from "./config.js";
+import http from "node:http";
+import { config, env, openSignup } from "./config.js";
 import { initDb } from "./db.js";
 import { ensureTmuxServer } from "./tmux.js";
 import { sessionRoutes } from "./routes/sessions.js";
@@ -188,6 +189,42 @@ async function main() {
   }, 60_000).unref();
 
   await app.listen({ host: config.host, port: config.port });
+
+  // A second door on a unix socket, for the agents' own traffic.
+  //
+  // Two reasons, one of which pays off today. Today: loopback TCP is reachable
+  // by every process on the box, so `agora chat` competing for :4570 shares a
+  // channel with anything else running here — a socket with 0600 on it does not.
+  // Later: it is the prerequisite for sandboxing sessions. bwrap can only cut a
+  // session off from the network with --unshare-net, and that also cuts it off
+  // from agora itself unless the way back in is a filesystem object the sandbox
+  // can be handed deliberately.
+  //
+  // Fastify listens once, so this is a second http.Server re-emitting onto the
+  // first. `request` only: the hook API is plain HTTP, and the websocket
+  // endpoints are the dashboard's, which arrives over TCP.
+  const sockPath = env("SOCKET") ?? path.join(config.dataDir, "agora.sock");
+  // a stale socket from a killed process would make bind fail with EADDRINUSE
+  try {
+    fs.unlinkSync(sockPath);
+  } catch {}
+  const local = http.createServer((req, res) => app.server.emit("request", req, res));
+  await new Promise<void>((resolve, reject) => {
+    local.once("error", reject);
+    local.listen(sockPath, () => resolve());
+  });
+  // 0600 before anyone can connect: the socket is the credential-free path in,
+  // so its permissions are the only thing standing on it
+  fs.chmodSync(sockPath, 0o600);
+  app.log.info({ sockPath }, "listening on unix socket");
+  const closeSocket = () => {
+    local.close();
+    try {
+      fs.unlinkSync(sockPath);
+    } catch {}
+  };
+  process.once("SIGTERM", closeSocket);
+  process.once("SIGINT", closeSocket);
 }
 
 main().catch((err) => {

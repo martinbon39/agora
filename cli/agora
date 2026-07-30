@@ -13,6 +13,7 @@
 "use strict";
 
 const fs = require("node:fs");
+const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
 
@@ -43,6 +44,56 @@ function secret() {
   } catch {
     fail(`no session token and no hook secret (${path.join(dataDir, "hook-secret")}) — are you inside an agora session?`);
   }
+}
+
+/**
+ * One request to the agora server, over the unix socket when it is there and
+ * loopback TCP otherwise.
+ *
+ * The socket is preferred because it is the path that survives sandboxing: a
+ * session cut off from the network with --unshare-net still reaches a filesystem
+ * object it was handed. It also cannot be reached by processes that were not
+ * handed it, which loopback TCP cannot say. TCP stays as the fallback for a shell
+ * agora did not start, and for older sessions whose environment predates this.
+ *
+ * The shape mimics the part of fetch() this file used, so the call sites read the
+ * same: `.ok`, `.status`, `.json()`.
+ */
+/** Which door request() would use — so an error can name the one that failed
+ *  instead of always blaming a TCP port we may not have touched. */
+function where() {
+  const sock = env("SOCKET") ?? path.join(dataDir, "agora.sock");
+  return fs.existsSync(sock) ? `socket ${sock}` : `port ${port}`;
+}
+
+function request(pathname, opts = {}) {
+  const sock = env("SOCKET") ?? path.join(dataDir, "agora.sock");
+  const viaSocket = fs.existsSync(sock);
+  const options = {
+    method: opts.method ?? "GET",
+    path: pathname,
+    headers: opts.headers ?? {},
+    ...(viaSocket ? { socketPath: sock } : { host: "127.0.0.1", port }),
+  };
+  return new Promise((resolve, reject) => {
+    const req = http.request(options, (res) => {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", (d) => (body += d));
+      res.on("end", () =>
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          json: async () => JSON.parse(body),
+          text: async () => body,
+        })
+      );
+    });
+    // the caller reports this as "server unreachable", which is true of both doors
+    req.on("error", (err) => reject(Object.assign(new Error(err.message), { cause: err })));
+    if (opts.body) req.write(opts.body);
+    req.end();
+  });
 }
 
 /** Public origin, for printing clickable URLs. The env FILE wins over the
@@ -90,13 +141,13 @@ async function notify(argv) {
   };
   let res;
   try {
-    res = await fetch(`http://127.0.0.1:${port}/api/hooks/notify`, {
+    res = await request(`/api/hooks/notify`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Agora-Hook": secret() },
       body: JSON.stringify(payload),
     });
   } catch (err) {
-    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on ${where()} (${err.cause?.code ?? err.message})`);
   }
   if (!res.ok) fail(`server answered ${res.status}: ${await res.text()}`);
   console.log("notification sent");
@@ -108,13 +159,13 @@ async function pc(argv) {
   if ((op !== "ls" && op !== "get") || !target) fail("usage: agora pc <ls|get> <path-on-pc>");
   let res;
   try {
-    res = await fetch(`http://127.0.0.1:${port}/api/hooks/pc`, {
+    res = await request(`/api/hooks/pc`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Agora-Hook": secret() },
       body: JSON.stringify({ op, path: target }),
     });
   } catch (err) {
-    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on ${where()} (${err.cause?.code ?? err.message})`);
   }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) fail(body.error ?? `server answered ${res.status}`);
@@ -151,8 +202,7 @@ async function chat(argv) {
   try {
     if (positional[0] === "log") {
       const n = Number(positional[1]) || 30;
-      const res = await fetch(
-        `http://127.0.0.1:${port}/api/hooks/chat/log?session=${encodeURIComponent(session)}&n=${n}`,
+      const res = await request(`/api/hooks/chat/log?session=${encodeURIComponent(session)}&n=${n}`,
         { headers }
       );
       if (!res.ok) fail(`chat log failed: ${res.status} ${await res.text()}`);
@@ -164,7 +214,7 @@ async function chat(argv) {
     } else {
       const body = positional.join(" ").trim();
       if (!body) fail("usage: agora chat <message…> | agora chat log [n]");
-      const res = await fetch(`http://127.0.0.1:${port}/api/hooks/chat`, {
+      const res = await request(`/api/hooks/chat`, {
         method: "POST",
         headers,
         body: JSON.stringify({ session_id: session, body }),
@@ -183,7 +233,7 @@ async function chat(argv) {
       }
     }
   } catch (err) {
-    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on ${where()} (${err.cause?.code ?? err.message})`);
   }
 }
 
@@ -199,13 +249,13 @@ async function ask(argv) {
   if (!to || !body) fail('usage: agora send <session-name> "<message>"');
   let res;
   try {
-    res = await fetch(`http://127.0.0.1:${port}/api/hooks/ask`, {
+    res = await request(`/api/hooks/ask`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Agora-Hook": secret() },
       body: JSON.stringify({ session_id: session, to, body }),
     });
   } catch (err) {
-    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on ${where()} (${err.cause?.code ?? err.message})`);
   }
   const out = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -228,12 +278,11 @@ async function board(argv) {
   const n = Number(positional[0]) || 30;
   let res;
   try {
-    res = await fetch(
-      `http://127.0.0.1:${port}/api/hooks/chat/board?session=${encodeURIComponent(session)}&n=${n}`,
+    res = await request(`/api/hooks/chat/board?session=${encodeURIComponent(session)}&n=${n}`,
       { headers: { "X-Agora-Hook": secret() } }
     );
   } catch (err) {
-    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on ${where()} (${err.cause?.code ?? err.message})`);
   }
   const out = await res.json().catch(() => ({}));
   if (!res.ok) fail(out.error ?? `server answered ${res.status}`);
@@ -253,12 +302,11 @@ async function frame(argv) {
   if (!session) fail("AGORA_SESSION_ID missing — run inside an agora session (or pass --session)");
   let res;
   try {
-    res = await fetch(
-      `http://127.0.0.1:${port}/api/hooks/frame?session=${encodeURIComponent(session)}`,
+    res = await request(`/api/hooks/frame?session=${encodeURIComponent(session)}`,
       { headers: { "X-Agora-Hook": secret() } }
     );
   } catch (err) {
-    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on ${where()} (${err.cause?.code ?? err.message})`);
   }
   const info = await res.json().catch(() => ({}));
   if (!res.ok) fail(info.error ?? `server answered ${res.status}`);
@@ -301,11 +349,11 @@ async function peek(argv) {
   if (flags.lines) qs.set("lines", flags.lines);
   let res;
   try {
-    res = await fetch(`http://127.0.0.1:${port}/api/hooks/peek?${qs}`, {
+    res = await request(`/api/hooks/peek?${qs}`, {
       headers: { "X-Agora-Hook": secret() },
     });
   } catch (err) {
-    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on ${where()} (${err.cause?.code ?? err.message})`);
   }
   const out = await res.json().catch(() => ({}));
   if (!res.ok) fail(out.candidates ? `${out.error}: ${out.candidates.join(", ")}` : (out.error ?? `server answered ${res.status}`));
@@ -334,7 +382,7 @@ async function spawn(argv) {
   if (!session) fail("AGORA_SESSION_ID missing — run inside an agora session (or pass --session)");
   const text = positional.join(" ").trim();
   try {
-    const res = await fetch(`http://127.0.0.1:${port}/api/hooks/spawn`, {
+    const res = await request(`/api/hooks/spawn`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Agora-Hook": secret() },
       body: JSON.stringify({
@@ -352,7 +400,7 @@ async function spawn(argv) {
         `talk to it with: agora chat "@${child.name} …"`
     );
   } catch (err) {
-    fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+    fail(`agora server unreachable on ${where()} (${err.cause?.code ?? err.message})`);
   }
 }
 
@@ -363,8 +411,7 @@ async function chatHook() {
   const session = env("SESSION_ID");
   if (!session) return;
   try {
-    const res = await fetch(
-      `http://127.0.0.1:${port}/api/hooks/chat/unread?session=${encodeURIComponent(session)}`,
+    const res = await request(`/api/hooks/chat/unread?session=${encodeURIComponent(session)}`,
       { headers: { "X-Agora-Hook": secret() }, signal: AbortSignal.timeout(3000) }
     );
     if (!res.ok) return;
@@ -397,7 +444,7 @@ async function planCmd(argv) {
   const session = flags.session ?? env("SESSION_ID");
   if (!session) fail("AGORA_SESSION_ID missing — run inside an agora session (or pass --session)");
   const [sub, ...rest] = positional;
-  const url = `http://127.0.0.1:${port}/api/hooks/plan`;
+  const planPath = "/api/hooks/plan";
   const headers = { "X-Agora-Hook": secret(), "Content-Type": "application/json" };
 
   const show = (tasks, meId) => {
@@ -421,9 +468,9 @@ async function planCmd(argv) {
   const call = async (payload) => {
     let res;
     try {
-      res = await fetch(url, { method: "POST", headers, body: JSON.stringify(payload) });
+      res = await request(planPath, { method: "POST", headers, body: JSON.stringify(payload) });
     } catch (err) {
-      fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+      fail(`agora server unreachable on ${where()} (${err.cause?.code ?? err.message})`);
     }
     const out = await res.json().catch(() => ({}));
     if (!res.ok) fail(out.error ?? `server answered ${res.status}`);
@@ -433,9 +480,9 @@ async function planCmd(argv) {
   if (!sub || sub === "ls") {
     let res;
     try {
-      res = await fetch(`${url}?session=${encodeURIComponent(session)}`, { headers });
+      res = await request(`${planPath}?session=${encodeURIComponent(session)}`, { headers });
     } catch (err) {
-      fail(`agora server unreachable on port ${port} (${err.cause?.code ?? err.message})`);
+      fail(`agora server unreachable on ${where()} (${err.cause?.code ?? err.message})`);
     }
     const out = await res.json().catch(() => ({}));
     if (!res.ok) fail(out.error ?? `server answered ${res.status}`);
