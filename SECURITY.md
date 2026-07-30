@@ -80,6 +80,62 @@ local instance is easy and gives you a much better repro.
 `deploy/gate-scope.mjs` pins the guest-scope guarantees above against the real
 routes; please add a case to it with any fix that touches them.
 
+## Tenancy, and where it stops
+
+agora is forked from a single-user cockpit, and the parts of that inheritance
+that matter for security have been replaced. The parts that have not are listed
+at the end of this section — read those before pointing a public URL at it.
+
+**A project is a row, not a directory.** Authorization goes through one function
+(`scopeAllows`) that every route consults, and it answers from the `projects`
+table: the row names the owner. A directory nobody registered belongs to nobody
+and is refused. Upstream, that function short-circuited on `role === "owner"`
+and returned true for every project on the box — correct for one human, and a
+cross-tenant hole here. The role now distinguishes a full account from an
+invited guest and grants nothing by itself.
+
+**Each tenant has a workspace.** Projects are created under a per-tenant
+directory. Containment is checked with `withinRoot`, which compares on a path
+separator: without it, `workspaces/alice-bob` reads as inside
+`workspaces/alice`. A session may only start inside a registered project — not
+in the home directory, which upstream allowed explicitly.
+
+**Each tenant runs as their own Anthropic account.** `CLAUDE_CONFIG_DIR` is
+always set to the tenant's own config directory, and a session refuses to start
+(402) when the tenant has connected nothing. Upstream set it only when a project
+named an account and otherwise let the child inherit the server's environment,
+so `claude` resolved `$HOME/.claude` — the operator's account, credentials and
+files. Inheritance is not a fallback here; it is the thing being prevented. API
+keys are stored in a 0600 file rather than in the database, which is what gets
+copied around for backups.
+
+These are pinned by `deploy/gate-tenants.mjs` and `deploy/gate-credentials.mjs`,
+both built on refusals with paired positive controls, and both verified to fail
+when the old behaviour is restored.
+
+### What is NOT isolated
+
+A session is still an ordinary process under the server's unix user. Three
+things follow, and no amount of application-level scoping addresses them:
+
+1. **The filesystem.** An agent can read the operator's home directory,
+   including agora's own database, its env file and its secrets. `bwrap` closes
+   this and works unprivileged (a tmpfs over `/home` with the tenant's
+   workspace bound back), but it is not wired in.
+2. **The network.** Sessions share the network namespace, so every loopback
+   service is reachable — including, on a typical box, a reverse proxy's
+   unauthenticated admin API. Unsharing the namespace instead cuts the agent off
+   from agora's own hook endpoint, so this needs the server to listen on a unix
+   socket, not just a flag.
+3. **The hook secret is global.** One value, readable by anything running as the
+   user, authenticates the `agora` CLI. A sandboxed agent handed that file could
+   act as any session. Per-session tokens are the fix.
+
+Because of these, `AGORA_OPEN_SIGNUP` makes the server **refuse to start**
+unless `AGORA_SANDBOX` is set. That override is appropriate for a team where the
+strangers are colleagues. It is not appropriate for a public URL, and there is
+currently no value that makes it genuinely sandboxed.
+
 ## Deploying it safely
 
 - Put it behind TLS and set `AGORA_ORIGIN` to the public URL. Passkeys bind to
