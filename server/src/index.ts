@@ -26,6 +26,7 @@ import { inviteRoutes } from "./routes/invites.js";
 import { bridgeRoutes, bridgeSecret } from "./bridge.js";
 import { tenantRoutes } from "./routes/tenant.js";
 import { planRoutes } from "./routes/plan.js";
+import { sweep } from "./rooms.js";
 import { initAuthDb, authRoutes, requireAuth, hookSecret } from "./auth.js";
 import { googleAuthRoutes } from "./googleAuth.js";
 import { initPush, pushRoutes } from "./push.js";
@@ -174,6 +175,13 @@ async function main() {
       reply.sendFile("index.html");
     });
   }
+
+  // Release the compute of rooms whose clock has run out. Nothing is deleted —
+  // see rooms.ts. Every minute is plenty: the latch makes it idempotent, so a
+  // missed tick costs a minute of runtime, never a double release.
+  setInterval(() => {
+    sweep().catch((err) => app.log.error({ err }, "room sweep failed"));
+  }, 60_000).unref();
 
   await app.listen({ host: config.host, port: config.port });
 }

@@ -123,6 +123,12 @@ export function initDb(): Database.Database {
     // set = a deliberate one-to-one interruption (`agora ask`), null = the board
     `ALTER TABLE chat_messages ADD COLUMN to_session TEXT`,
     `ALTER TABLE sessions ADD COLUMN hook_token TEXT`,
+    // The room clock. `deadline` is what the humans are racing (a hackathon's
+    // submission time) and is purely informational. `expires_at` is when the
+    // room's COMPUTE is released — see projects.expire().
+    `ALTER TABLE projects ADD COLUMN deadline INTEGER`,
+    `ALTER TABLE projects ADD COLUMN expires_at INTEGER`,
+    `ALTER TABLE projects ADD COLUMN expired_at INTEGER`,
   ]) {
     try {
       db.exec(ddl);
@@ -398,6 +404,13 @@ export interface ProjectRow {
   name: string;
   owner_email: string;
   created_at: number;
+  /** What the humans are racing — a submission time. Informational only. */
+  deadline?: number | null;
+  /** When this room's compute should be released. Null = never, and null is
+   *  the default: a room only expires if its owner asked for it to. */
+  expires_at?: number | null;
+  /** When the release actually happened, so the sweep is idempotent. */
+  expired_at?: number | null;
 }
 
 export const users = {
@@ -448,6 +461,29 @@ export const projects = {
   },
   remove(projectPath: string) {
     db.prepare(`DELETE FROM projects WHERE path = ?`).run(projectPath);
+  },
+  setClock(projectPath: string, clock: { deadline?: number | null; expires_at?: number | null }) {
+    const row = this.get(projectPath);
+    if (!row) return;
+    db.prepare(`UPDATE projects SET deadline = @deadline, expires_at = @expires_at WHERE path = @path`).run({
+      path: projectPath,
+      deadline: clock.deadline === undefined ? (row.deadline ?? null) : clock.deadline,
+      expires_at: clock.expires_at === undefined ? (row.expires_at ?? null) : clock.expires_at,
+    });
+  },
+  /** Rooms whose compute is due for release: an expiry set, now past, not yet
+   *  released. A project with no expires_at is never returned — opting out is
+   *  the default, not something an owner has to remember. */
+  due(now = Date.now()): ProjectRow[] {
+    return db
+      .prepare(
+        `SELECT * FROM projects
+          WHERE expires_at IS NOT NULL AND expires_at <= ? AND expired_at IS NULL`
+      )
+      .all(now) as ProjectRow[];
+  },
+  markExpired(projectPath: string, now = Date.now()) {
+    db.prepare(`UPDATE projects SET expired_at = ? WHERE path = ?`).run(now, projectPath);
   },
 };
 

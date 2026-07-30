@@ -39,6 +39,7 @@ export const PlanNode = memo(function PlanNode({ id, selected }: NodeProps) {
   const [draft, setDraft] = useState("");
   const [spend, setSpend] = useState<number | null>(null);
   const [unpriced, setUnpriced] = useState(0);
+  const [leftMs, setLeftMs] = useState<number | null>(null);
 
   const refresh = useCallback(() => {
     api
@@ -62,9 +63,18 @@ export const PlanNode = memo(function PlanNode({ id, selected }: NodeProps) {
           setUnpriced(total.unpricedTokens);
         })
         .catch(() => {});
+    const pollRoom = () =>
+      api
+        .room(project)
+        .then(({ remainingMs }) => !cancelled && setLeftMs(remainingMs))
+        .catch(() => {});
     poll();
+    pollRoom();
     // derived from transcripts on disk, so a poll is a file read, not a counter
-    const timer = setInterval(poll, 30_000);
+    const timer = setInterval(() => {
+      poll();
+      pollRoom();
+    }, 30_000);
     return () => {
       cancelled = true;
       clearInterval(timer);
@@ -107,6 +117,19 @@ export const PlanNode = memo(function PlanNode({ id, selected }: NodeProps) {
           <ListChecks className="size-3.5 shrink-0 text-emerald-400" />
           <span className="text-xs font-medium">Plan</span>
           <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground/60">
+            {/* The clock first: at a hackathon it is the number that changes what
+                the team does next. Red under an hour, because that is when it
+                starts mattering. */}
+            {leftMs !== null && (
+              <span className={leftMs < 3_600_000 ? "text-rose-400" : "text-foreground/70"}>
+                {leftMs <= 0
+                  ? "time up"
+                  : leftMs < 3_600_000
+                    ? `${Math.ceil(leftMs / 60_000)}m left`
+                    : `${Math.floor(leftMs / 3_600_000)}h ${Math.round((leftMs % 3_600_000) / 60_000)}m left`}
+                {" · "}
+              </span>
+            )}
             {stuck > 0 && <span className="text-rose-400/80">{stuck} stuck · </span>}
             {held} held · {open} free
             {spend !== null && (

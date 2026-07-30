@@ -4,6 +4,8 @@ import { plan, sessions } from "../db.js";
 import { actingSession, scopeAllows } from "../auth.js";
 import { broadcast } from "../events.js";
 import { costOfTranscript, sumCosts } from "../cost.js";
+import { projects as registry } from "../db.js";
+import { remaining } from "../rooms.js";
 import { transcriptPath } from "./peek.js";
 
 /**
@@ -134,6 +136,47 @@ export async function planRoutes(app: FastifyInstance) {
         .sort((a, b) => b.usd - a.usd),
     };
   });
+
+  /** The room's clock. GET reports it; PUT sets it. */
+  app.get("/api/room", async (req, reply) => {
+    const project = (req.query as { project?: string }).project ?? "";
+    if (!scopeAllows(req.authUser, project)) {
+      return reply.code(403).send({ error: "outside your shared canvas" });
+    }
+    const row = registry.get(path.resolve(project));
+    if (!row) return reply.code(404).send({ error: "unknown project" });
+    return {
+      deadline: row.deadline ?? null,
+      remainingMs: remaining(row),
+      expiresAt: row.expires_at ?? null,
+      expiredAt: row.expired_at ?? null,
+    };
+  });
+
+  app.put<{ Body: { project?: string; deadline?: number | null; expiresAt?: number | null } }>(
+    "/api/room",
+    async (req, reply) => {
+      const { project = "", deadline, expiresAt } = req.body ?? {};
+      if (!scopeAllows(req.authUser, project)) {
+        return reply.code(403).send({ error: "outside your shared canvas" });
+      }
+      // Setting an expiry stops this room's agents when it passes. Only the
+      // owner may do that — a guest is a visitor, and "the room shut down" is
+      // not a visitor's decision to make.
+      if (expiresAt !== undefined && req.authUser?.role === "guest") {
+        return reply.code(403).send({ error: "only the owner sets a room's expiry" });
+      }
+      const root = path.resolve(project);
+      if (!registry.get(root)) return reply.code(404).send({ error: "unknown project" });
+      registry.setClock(root, {
+        ...(deadline !== undefined ? { deadline } : {}),
+        ...(expiresAt !== undefined ? { expires_at: expiresAt } : {}),
+      });
+      const row = registry.get(root)!;
+      broadcast({ type: "plan_changed" }, { project: root });
+      return { deadline: row.deadline ?? null, remainingMs: remaining(row), expiresAt: row.expires_at ?? null };
+    }
+  );
 
   // ---- the dashboard ------------------------------------------------------
   app.get("/api/plan", async (req, reply) => {
