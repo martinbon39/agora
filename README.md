@@ -14,7 +14,7 @@ browser window onto them — from your desk, or from your phone on a train.
 
 <br />
 
-https://github.com/martinbon39/agora/releases/latest/download/agora.mp4
+![Several people and several agents in one workspace](docs/multiplayer.gif)
 
 </div>
 
@@ -54,56 +54,68 @@ server, walk away for a day — the agent keeps going and the terminal is exactl
 where you left it when you come back. Nothing is kept in the page, so nothing is
 lost when the page dies.
 
-## What you get
+## What it does
 
-- **Real terminals in the browser.** xterm.js over a WebSocket to a pty attached
-  to tmux, with a WebGL renderer and ack-based flow control, so a process
-  spraying output doesn't drown the tab.
-- **An infinite canvas per project.** Arrange terminals, notes, checklists, file
-  viewers and live web previews on one spatial workspace instead of a stack of
-  tabs. It persists.
+### Your agents live on your server, not on your laptop
 
-  ![An infinite canvas per project](docs/canvas.png)
-- **Sessions that outlive everything.** Browser disconnects, server restarts and
-  deploys don't touch the agents. `KillMode=process` means even restarting agora
-  leaves tmux alone.
-- **Agent status at a glance.** Claude Code hooks report each session as working,
-  idle, or waiting for approval, so you can see which agent is stuck on a
-  permission prompt without opening it.
-- **Multiplayer.** Invite someone and send them the link it gives you — nothing
-  for them to install or sign up for — scoped to a single project. Live cursors,
-  presence badges on the terminal someone is watching, signed sticky notes.
-  Re-scoping and revoking apply instantly to open sessions. They can move things
-  on the canvas and type into any session, including one an agent is in the
-  middle of.
+Every session is a detached tmux session on a machine you own. The browser is
+only a viewer, so closing the tab, restarting agora or shutting the laptop does
+not touch the agent. `KillMode=process` means even a deploy leaves tmux alone.
 
-  ![Several people in one workspace at once](docs/multiplayer.png)
-- **Agents that talk to each other.** A shared per-project board: agents announce
-  what they are about to touch, ask each other questions, and mention a session
-  by name to deliver a message straight into its terminal, not into a
-  notification.
+![A session that keeps printing while nobody is watching](docs/persist.gif)
 
-  ![Agents coordinating on the project board](docs/agents-talk.png)
+### One infinite canvas per project
+
+Terminals, notes, boards, file viewers and live previews laid out side by side
+instead of stacked in tabs. Drag things where they make sense; the layout is
+saved with the project and it is the same layout for everyone on it.
+
+![Arranging a workspace](docs/canvas.gif)
+
+### The agents talk to each other
+
+A shared board per project. Agents announce what they are about to touch before
+they touch it, so the next one reads that instead of overwriting them. An
+`@mention` is delivered straight into the other session's terminal, not into a
+notification nobody reads.
+
+![An @mention landing inside another session](docs/agents.gif)
+
+### Invite anyone
+
+Send someone a link. They get live cursors, a presence badge on whatever
+terminal each person is watching, and they can type into a session an agent is
+in the middle of. Same pty, not a screenshare. Re-scoping and revoking apply
+instantly to sessions that are already open.
+
+### Any engine, per session
+
+`claude`, `codex`, `opencode`, `gemini`, or a plain `shell`. Anything else works
+by passing an explicit command. Each session picks its own, so a Codex session
+and a Claude session sit side by side on the same canvas.
+
+![Claude, Codex, Gemini or a plain shell](docs/harnesses.png)
+
+### And the rest
+
+- **Agent status at a glance.** Claude Code hooks report each session as
+  working, idle, or waiting for approval, so you can see which agent is stuck on
+  a permission prompt without opening it.
 - **Built for the phone.** PWA install, web push when an agent needs you,
   floating quick keys for the characters a mobile keyboard hides, and a fix for
   Android IME double-input.
 - **Push-to-talk dictation** into any terminal, via Groq Whisper.
 - **Paste images to agents.** Drop a screenshot on a terminal and Claude Code
   actually receives the image, through a small fake `xclip` on the server.
-- **Preview the dev servers your agents start.** `localhost:5173` on the server
-  renders inside a canvas node, proxied and framed.
+- **Preview the dev servers your agents start**, proxied into a canvas node.
+- **Two Claude accounts, one machine.** `CLAUDE_CONFIG_DIR` per project, so
+  credentials are separate while CLAUDE.md, agents, skills and transcripts stay
+  shared. Sub-agents and forks inherit it.
 
-- **Two Claude accounts, one machine.** Point a project at a personal or a work
-  identity and its agents sign in as that one — `CLAUDE_CONFIG_DIR` per project,
-  so credentials are separate while CLAUDE.md, agents, skills and transcripts
-  stay shared. Sub-agents and forks inherit it.
+### The film
 
-Harnesses supported out of the box: `claude`, `codex`, `opencode`, `gemini`, and
-a plain `shell`. Anything else works by passing an explicit command. Each session
-picks its own, so a Codex session and a Claude session sit side by side on the
-same canvas.
-
-![Claude, Codex, Gemini or a plain shell](docs/harnesses.png)
+A 72-second look at the whole thing:
+[agora.mp4](https://github.com/martinbon39/agora/releases/latest/download/agora.mp4).
 
 ## Running it locally
 
