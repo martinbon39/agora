@@ -215,6 +215,38 @@ check(
   xs.opened ? "IT OPENED" : `http=${xs.http}`
 );
 
+// ---- 2b. the rate limiter cannot be stepped around with an encoding -------
+// The auth endpoints are the only rate-limited prefix, and invite redemption is
+// one of them — it is what stands between a link token and someone guessing at
+// it. The predicate tested req.raw.url, the UNDECODED target, while the router
+// percent-decodes before matching: `/%61pi/auth/...` reached the handler with
+// the limiter exempting it, 45 of 45 attempts unthrottled. Exactly the gap the
+// auth gate itself was fixed for, in the other direction. Needs a real server —
+// fastify.inject does not run the plugin's keying the same way.
+{
+  const hammer = async (p) => {
+    const codes = [];
+    for (let i = 0; i < 40; i++) {
+      const res = await fetch(BASE + p, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token: `guess-${i}` }),
+      });
+      codes.push(res.status);
+    }
+    return codes;
+  };
+  const encoded = await hammer("/%61pi/auth/invite");
+  const reached = encoded.filter((c) => c === 403).length;
+  check(
+    "REFUSED: a percent-encoded auth path is rate limited like the plain one",
+    encoded.includes(429),
+    reached === encoded.length
+      ? `all ${reached} attempts reached the handler unthrottled`
+      : `codes seen: ${[...new Set(encoded)].join(",")}`
+  );
+}
+
 // ---- 3. two people on one canvas ------------------------------------------
 function events(tok) {
   const ws = new WebSocket(`ws://127.0.0.1:${PORT}/ws/events`, {

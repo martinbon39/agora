@@ -30,7 +30,7 @@ import { planRoutes } from "./routes/plan.js";
 import { spectateRoutes } from "./routes/spectate.js";
 import { reelRoutes } from "./routes/reel.js";
 import { sweep } from "./rooms.js";
-import { initAuthDb, authRoutes, requireAuth, hookSecret } from "./auth.js";
+import { initAuthDb, authRoutes, requireAuth, hookSecret, gatePath } from "./auth.js";
 import { googleAuthRoutes } from "./googleAuth.js";
 import { initPush, pushRoutes } from "./push.js";
 
@@ -104,7 +104,17 @@ async function main() {
   await app.register(rateLimit, {
     max: 30,
     timeWindow: "1 minute",
-    allowList: (req) => !(req.raw.url ?? "").startsWith("/api/auth/"),
+    // Rate limit the authentication endpoints and nothing else (allowList is
+    // the EXEMPT list, so this reads inverted).
+    //
+    // gatePath, not req.raw.url: the router percent-decodes before matching, so
+    // `/%61pi/auth/invite` reached the handler while a prefix test on the raw
+    // target saw no match and exempted it — 45 of 45 attempts unthrottled,
+    // measured. Every login endpoint, and invite redemption with it, was
+    // reachable at full speed by anyone who encoded one letter. This is the
+    // same decoding gap the auth gate itself was fixed for; sharing gatePath is
+    // what stops the two from drifting apart again.
+    allowList: (req) => !gatePath(req).startsWith("/api/auth/"),
   });
   requireAuth(app);
   await app.register(websocket, {

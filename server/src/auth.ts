@@ -420,7 +420,7 @@ export function hookSecret(): string {
  *  protected prefix at once. Prefer the pattern the router actually matched,
  *  which no encoding can disguise, and fall back to a decoded path when
  *  nothing matched (undecodable input counts as protected). */
-function gatePath(req: FastifyRequest): string {
+export function gatePath(req: FastifyRequest): string {
   const matched = req.routeOptions?.url;
   if (matched) return matched;
   const raw = (req.raw.url ?? "/").split("?")[0];
