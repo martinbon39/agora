@@ -16,49 +16,21 @@ import { sp } from '../lib/motion';
 import { Caption, SectionLabel } from '../lib/Caption';
 import { Stage } from '../lib/Stage';
 import { CanvasBackground } from '../ui/CanvasBackground';
-import { Terminal, type TermLine } from '../ui/Terminal';
+import { Session } from '../lib/Session';
 import { TerminalNode } from '../ui/TerminalNode';
 import { ChatNode } from '../ui/ChatNode';
-import { ATHENA_SESSION, BOARD, HERMES_SESSION } from '../content';
+import { ATHENA_EVENTS, ATHENA_EVENTS_AFTER, BOARD, HERMES_EVENTS } from '../content';
 
 const BOARD_IN = BAR * 2; // 192
 const DELIVER = BAR * 3; // 288, the mention leaves the board
 const LANDED = DELIVER + 18;
 
-const countChars = (lines: TermLine[]) =>
-  lines.reduce((n, l) => n + l.spans.reduce((m, s) => m + s.text.length, 0), 0);
-
-/** What athena's session shows once hermes' message reaches her. */
-export const ATHENA_AFTER: TermLine[] = [
-  ...ATHENA_SESSION,
-  { spans: [{ text: '' }] },
-  {
-    spans: [
-      { text: '← message from ', color: term.brightBlack },
-      { text: 'hermes', color: term.magenta, bold: true },
-    ],
-  },
-  {
-    spans: [
-      { text: '  ' },
-      { text: 'billing.ts', color: term.blue },
-      { text: ' is yours. Pushed at 18:34, tests green.' },
-    ],
-  },
-  { spans: [{ text: '✓', color: term.green }, { text: ' approved. writing refund path' }] },
-];
-
 export const ActAgentTalk: React.FC = () => {
   const frame = useCurrentFrame();
 
-  const hermesTyped = interpolate(frame, [10, 150], [0, countChars(HERMES_SESSION)], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
-  const athenaTyped = interpolate(frame, [40, 190], [0, countChars(ATHENA_SESSION)], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
+  // one event per beat, the way a session actually fills up
+  const hermesSeen = Math.floor((frame - 12) / BEAT) + 1;
+  const athenaSeen = Math.floor((frame - 36) / BEAT) + 1;
 
   // one message per beat once the board is in
   const visibleMessages = Math.max(
@@ -85,7 +57,7 @@ export const ActAgentTalk: React.FC = () => {
         style={{
           position: 'absolute',
           left: 110,
-          top: 268,
+          top: 232,
           transform: `translateY(${(1 - sp(frame, 0, 'glide')) * 40}px)`,
           opacity: sp(frame, 0, 'glide'),
         }}
@@ -97,9 +69,18 @@ export const ActAgentTalk: React.FC = () => {
           stateLabel={delivered ? 'idle' : 'working'}
           path="~/projects/checkout"
           width={740}
-          height={392}
+          height={424}
         >
-          <Terminal lines={HERMES_SESSION} visibleChars={hermesTyped} showCursor fontSize={14.5} />
+          <Session
+            harness={AGENTS.hermes.harness}
+            width={740}
+            height={424 - 36}
+            events={HERMES_EVENTS}
+            visibleCount={hermesSeen}
+            status={delivered ? 'idle' : 'working'}
+            spinnerFrame={frame}
+            fontSize={13}
+          />
         </TerminalNode>
       </div>
 
@@ -108,7 +89,7 @@ export const ActAgentTalk: React.FC = () => {
         style={{
           position: 'absolute',
           left: 1070,
-          top: 268,
+          top: 232,
           transform: `translateY(${(1 - sp(frame, BEAT, 'glide')) * 40}px) scale(${
             1 + landFlash * 0.02
           })`,
@@ -122,15 +103,19 @@ export const ActAgentTalk: React.FC = () => {
           stateLabel={delivered ? 'working' : 'needs approval'}
           path="~/projects/checkout"
           width={740}
-          height={392}
+          height={424}
           glowColor={term.magenta}
           glowStrength={landFlash}
         >
-          <Terminal
-            lines={delivered ? ATHENA_AFTER : ATHENA_SESSION}
-            visibleChars={delivered ? undefined : athenaTyped}
-            showCursor
-            fontSize={14.5}
+          <Session
+            harness={AGENTS.athena.harness}
+            width={740}
+            height={424 - 36}
+            events={delivered ? ATHENA_EVENTS_AFTER : ATHENA_EVENTS}
+            visibleCount={delivered ? undefined : athenaSeen}
+            status={delivered ? 'working' : 'waiting'}
+            spinnerFrame={frame}
+            fontSize={13}
           />
         </TerminalNode>
       </div>
@@ -147,7 +132,7 @@ export const ActAgentTalk: React.FC = () => {
             zIndex: 5,
           }}
         >
-          <ChatNode width={610} height={390} messages={BOARD} visibleCount={visibleMessages} />
+          <ChatNode width={610} height={360} messages={BOARD} visibleCount={visibleMessages} />
         </div>
       )}
 
@@ -157,7 +142,7 @@ export const ActAgentTalk: React.FC = () => {
           style={{
             position: 'absolute',
             left: interpolate(travel, [0, 1], [900, 1420]),
-            top: interpolate(travel, [0, 1], [760, 292]),
+            top: interpolate(travel, [0, 1], [780, 256]),
             zIndex: 20,
             transform: `scale(${interpolate(travel, [0, 0.5, 1], [0.6, 1.15, 0.9])})`,
             opacity: interpolate(travel, [0, 0.1, 0.9, 1], [0, 1, 1, 0.4]),

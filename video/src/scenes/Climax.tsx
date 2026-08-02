@@ -11,12 +11,12 @@ import { BAR, BEAT } from '../lib/beats';
 import { rand, reveal, sp } from '../lib/motion';
 import { Stage } from '../lib/Stage';
 import { CanvasBackground } from '../ui/CanvasBackground';
-import { Terminal } from '../ui/Terminal';
+import { Session } from '../lib/Session';
 import { TerminalNode } from '../ui/TerminalNode';
 import { ChatNode } from '../ui/ChatNode';
 import { StickyNode } from '../ui/StickyNode';
 import { Cursor } from '../ui/Cursor';
-import { BOARD, PEERS, SESSIONS } from '../content';
+import { BOARD, EVENT_SESSIONS, PEERS } from '../content';
 
 const FRAGMENTS = BAR * 3; // 288 — where the grid breaks up
 const HOLE = 456; // TAIL is exactly 168 frames, so 288 + 168 lands here
@@ -92,7 +92,7 @@ const Cellular: React.FC<{ cell: Cell; frame: number }> = ({ cell, frame }) => {
         glowStrength={watched ? 0.85 : 0}
         viewers={watched ? [{ name: peer.name, color: peer.color }] : []}
       >
-        <Terminal lines={SESSIONS[cell.i % SESSIONS.length]} showCursor fontSize={12} />
+        <Session harness={AGENTS[name].harness} width={cell.w} height={cell.h - 36} events={EVENT_SESSIONS[cell.i % EVENT_SESSIONS.length]} status={STATES[cell.i % STATES.length] === 'idle' ? 'idle' : STATES[cell.i % STATES.length] === 'needs_approval' ? 'waiting' : 'working'} fontSize={10.5} />
       </TerminalNode>
     </div>
   );

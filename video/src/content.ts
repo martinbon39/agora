@@ -108,3 +108,77 @@ export const PEERS = [
   { name: 'lea', color: '#fca5a5' },
   { name: 'sam', color: '#86efac' },
 ];
+
+// ---------------------------------------------------------------------------
+// The same sessions again, as TUI events.
+//
+// Every terminal in the film renders through the real interface of whichever
+// harness is running in it, so the narrative has to be expressed as the things
+// those interfaces actually show: a prompt, an assistant turn, a tool call with
+// its result. `note` is the escape hatch for the events agora itself injects,
+// like a message arriving from another session or a human joining one.
+
+import type { TuiEvent } from './ui/TuiClaude';
+
+export const HERMES_EVENTS: TuiEvent[] = [
+  { kind: 'user', text: 'add stripe webhooks, keep the tests green' },
+  { kind: 'tool', name: 'Read', args: 'src/payments/**', result: '14 files' },
+  { kind: 'assistant', text: 'Handler plus six tests. Running them now.' },
+  { kind: 'tool', name: 'Bash', args: 'npx vitest run', result: '41 passed' },
+  { kind: 'note', text: '@athena picking up the refund path. leave billing.ts', color: term.magenta },
+];
+
+export const HERMES_EVENTS_LATER: TuiEvent[] = [
+  ...HERMES_EVENTS,
+  { kind: 'tool', name: 'Read', args: 'src/payments/refund.ts' },
+  { kind: 'assistant', text: 'Idempotency keys in, eleven more tests.' },
+  { kind: 'tool', name: 'Bash', args: 'npx vitest run', result: '58 passed  ·  6h 12m in session' },
+];
+
+export const ATHENA_EVENTS: TuiEvent[] = [
+  { kind: 'user', text: 'refund path, mirror the webhook tests' },
+  { kind: 'tool', name: 'Read', args: 'src/payments/refund.ts' },
+  { kind: 'assistant', text: 'This needs billing.ts, which hermes is holding.' },
+];
+
+export const ATHENA_EVENTS_AFTER: TuiEvent[] = [
+  ...ATHENA_EVENTS,
+  { kind: 'note', text: 'message from hermes: billing.ts is yours, tests green', color: term.magenta },
+  { kind: 'tool', name: 'Edit', args: 'src/payments/billing.ts', result: 'writing refund path' },
+];
+
+export const ATHENA_EVENTS_TAKEN: TuiEvent[] = [
+  ...ATHENA_EVENTS_AFTER,
+  { kind: 'note', text: 'martin joined this session', color: term.cyan },
+  { kind: 'user', text: 'hold on, add a test for the double refund case first' },
+];
+
+export const HYPNOS_EVENTS: TuiEvent[] = [
+  { kind: 'user', text: 'audit the migration before anyone runs it' },
+  { kind: 'tool', name: 'Read', args: 'db/migrations/0042_refunds.sql' },
+  { kind: 'assistant', text: 'It drops refund_audit with no backup. Posting to the board.' },
+];
+
+export const HYPNOS_EVENTS_TAKEN: TuiEvent[] = [
+  ...HYPNOS_EVENTS,
+  { kind: 'note', text: 'lea joined this session', color: term.green },
+  { kind: 'user', text: 'write the backup step first' },
+];
+
+export const IRIS_EVENTS: TuiEvent[] = [
+  { kind: 'user', text: 'keep main green' },
+  { kind: 'tool', name: 'Bash', args: 'vitest --watch', result: '41 passed · 1.8s' },
+];
+
+export const NYX_EVENTS: TuiEvent[] = [
+  { kind: 'user', text: 'ship the changelog' },
+  { kind: 'tool', name: 'Edit', args: 'CHANGELOG.md', result: '3 entries written' },
+];
+
+export const EVENT_SESSIONS = [
+  HERMES_EVENTS,
+  ATHENA_EVENTS,
+  HYPNOS_EVENTS,
+  IRIS_EVENTS,
+  NYX_EVENTS,
+];

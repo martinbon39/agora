@@ -11,14 +11,14 @@ import { c, font, term, AGENTS } from '../brand/tokens';
 import { BEAT } from '../lib/beats';
 import { rand } from '../lib/motion';
 import { Bloom, Stage } from '../lib/Stage';
-import { Terminal } from '../ui/Terminal';
+import { Session } from '../lib/Session';
 import { TerminalNode } from '../ui/TerminalNode';
 import { ChatNode } from '../ui/ChatNode';
 import { StickyNode } from '../ui/StickyNode';
 import { Cursor } from '../ui/Cursor';
 import { CanvasBackground } from '../ui/CanvasBackground';
 import { HarnessAvatar } from '../ui/HarnessAvatar';
-import { BOARD, PEERS, SESSIONS } from '../content';
+import { BOARD, EVENT_SESSIONS, PEERS } from '../content';
 
 // Shot lengths in frames, ramping a beat -> half -> quarter.
 //
@@ -57,7 +57,7 @@ type ShotProps = { t: number; dur: number; seed: number };
 
 /** A terminal pane, blown up past the frame so only a slab of it is visible. */
 const ShotTerminal: React.FC<ShotProps> = ({ t, dur, seed }) => {
-  const lines = SESSIONS[Math.floor(rand(seed) * SESSIONS.length)];
+  const lines = EVENT_SESSIONS[Math.floor(rand(seed) * EVENT_SESSIONS.length)];
   const scale = 2.6 + rand(seed + 1) * 1.2;
   const drift = interpolate(t, [0, dur], [0, -60]);
   return (
@@ -71,7 +71,7 @@ const ShotTerminal: React.FC<ShotProps> = ({ t, dur, seed }) => {
           transformOrigin: 'left top',
         }}
       >
-        <Terminal lines={lines} showCursor fontSize={13.5} />
+        <Session harness="claude" width={760} height={520} events={lines} status="working" spinnerFrame={t} fontSize={13} />
       </div>
     </AbsoluteFill>
   );
@@ -150,7 +150,7 @@ const ShotNode: React.FC<ShotProps> = ({ t, dur, seed }) => {
   const names = Object.keys(AGENTS) as (keyof typeof AGENTS)[];
   const name = names[Math.floor(rand(seed) * names.length)];
   const agent = AGENTS[name];
-  const lines = SESSIONS[Math.floor(rand(seed + 1) * SESSIONS.length)];
+  const lines = EVENT_SESSIONS[Math.floor(rand(seed + 1) * EVENT_SESSIONS.length)];
   const glow = interpolate(t, [0, dur], [0, 1]);
   return (
     <AbsoluteFill
@@ -170,7 +170,7 @@ const ShotNode: React.FC<ShotProps> = ({ t, dur, seed }) => {
           glowStrength={glow}
           viewers={[{ name: 'martin', color: PEERS[0].color }]}
         >
-          <Terminal lines={lines} showCursor fontSize={15} />
+          <Session harness={agent.harness} width={880} height={520 - 36} events={lines} status="working" spinnerFrame={t} fontSize={13} />
         </TerminalNode>
       </div>
     </AbsoluteFill>

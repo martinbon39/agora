@@ -12,19 +12,19 @@ import { sp, springTo } from '../lib/motion';
 import { Caption, SectionLabel } from '../lib/Caption';
 import { Stage } from '../lib/Stage';
 import { CanvasBackground } from '../ui/CanvasBackground';
-import { Terminal } from '../ui/Terminal';
+import { Session } from '../lib/Session';
 import { TerminalNode } from '../ui/TerminalNode';
 import { StickyNode } from '../ui/StickyNode';
 import { ChatNode } from '../ui/ChatNode';
 import { Cursor } from '../ui/Cursor';
 import {
   PEERS,
-  ATHENA_SESSION,
+  ATHENA_EVENTS,
   BOARD,
-  HERMES_SESSION,
-  HYPNOS_SESSION,
-  IRIS_SESSION,
-  NYX_SESSION,
+  HERMES_EVENTS,
+  HYPNOS_EVENTS,
+  IRIS_EVENTS,
+  NYX_EVENTS,
 } from '../content';
 
 type Placed = {
@@ -51,7 +51,7 @@ const NODES: Placed[] = [
         width={720}
         height={430}
       >
-        <Terminal lines={HERMES_SESSION} showCursor fontSize={13.5} />
+        <Session harness={AGENTS.hermes.harness} width={720} height={430 - 36} events={HERMES_EVENTS} status="working" fontSize={11.5} />
       </TerminalNode>
     ),
   },
@@ -70,7 +70,7 @@ const NODES: Placed[] = [
         width={660}
         height={380}
       >
-        <Terminal lines={ATHENA_SESSION} showCursor fontSize={13.5} />
+        <Session harness={AGENTS.athena.harness} width={660} height={380 - 36} events={ATHENA_EVENTS} status="waiting" fontSize={11.5} />
       </TerminalNode>
     ),
   },
@@ -104,7 +104,7 @@ const NODES: Placed[] = [
         width={640}
         height={360}
       >
-        <Terminal lines={HYPNOS_SESSION} showCursor fontSize={13.5} />
+        <Session harness={AGENTS.hypnos.harness} width={640} height={360 - 36} events={HYPNOS_EVENTS} status="working" fontSize={11.5} />
       </TerminalNode>
     ),
   },
@@ -130,7 +130,7 @@ const NODES: Placed[] = [
         width={520}
         height={300}
       >
-        <Terminal lines={IRIS_SESSION} fontSize={13} />
+        <Session harness={AGENTS.iris.harness} width={520} height={300 - 36} events={IRIS_EVENTS} status="idle" fontSize={11} />
       </TerminalNode>
     ),
   },
@@ -164,7 +164,7 @@ const NODES: Placed[] = [
         width={500}
         height={280}
       >
-        <Terminal lines={NYX_SESSION} showCursor fontSize={12.5} />
+        <Session harness={AGENTS.nyx.harness} width={500} height={280 - 36} events={NYX_EVENTS} status="working" fontSize={11} />
       </TerminalNode>
     ),
   },

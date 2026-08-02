@@ -17,13 +17,20 @@ import { expoOut, rise, sp } from '../lib/motion';
 import { Caption, SectionLabel } from '../lib/Caption';
 import { Stage } from '../lib/Stage';
 import { CanvasBackground } from '../ui/CanvasBackground';
-import { Terminal, type TermLine } from '../ui/Terminal';
+import { Session } from '../lib/Session';
 import { TerminalNode } from '../ui/TerminalNode';
 import { ChatNode } from '../ui/ChatNode';
 import { StickyNode } from '../ui/StickyNode';
 import { Cursor } from '../ui/Cursor';
-import { BOARD, HERMES_SESSION, HYPNOS_SESSION, PEERS } from '../content';
-import { ATHENA_AFTER } from './ActAgentTalk';
+import {
+  ATHENA_EVENTS_AFTER,
+  ATHENA_EVENTS_TAKEN,
+  BOARD,
+  HERMES_EVENTS,
+  HYPNOS_EVENTS,
+  HYPNOS_EVENTS_TAKEN,
+  PEERS,
+} from '../content';
 
 // The act opens on the thing that lets any of this happen: an invite button.
 // A cursor presses it, and the room fills. Martin's note was that the cut into
@@ -34,39 +41,6 @@ const HUMANS = BAR; // 96, and they all arrive together
 const CANVAS_ACT = BAR * 3; // 288, somebody puts something on the canvas
 const TAKEOVER = BAR * 5; // 480, and then takes a keyboard that is not theirs
 const SECOND = BAR * 7; // 672, and a second person does the same, elsewhere
-
-/** athena's session once martin steps into it */
-const ATHENA_TAKEN: TermLine[] = [
-  ...ATHENA_AFTER,
-  { spans: [{ text: '' }] },
-  {
-    spans: [
-      { text: '← ', color: term.brightBlack },
-      { text: 'martin', color: term.cyan, bold: true },
-      { text: ' joined this session', color: term.brightBlack },
-    ],
-  },
-  {
-    spans: [
-      { text: '› ', color: term.brightBlack },
-      { text: 'hold on, add a test for the double refund case first' },
-    ],
-  },
-];
-
-/** hypnos's session once lea steps into it */
-const HYPNOS_TAKEN: TermLine[] = [
-  ...HYPNOS_SESSION,
-  { spans: [{ text: '' }] },
-  {
-    spans: [
-      { text: '← ', color: term.brightBlack },
-      { text: 'lea', color: term.green, bold: true },
-      { text: ' joined this session', color: term.brightBlack },
-    ],
-  },
-  { spans: [{ text: '› ', color: term.brightBlack }, { text: 'write the backup step first' }] },
-];
 
 type Leg = { at: number; x: number; y: number };
 const ARRIVALS: {
@@ -221,7 +195,15 @@ export const ActMultiplayer: React.FC = () => {
           glowStrength={takenOver ? 0 : watchHermes}
           viewers={watchHermes > 0.4 && !takenOver ? [viewer(0)] : []}
         >
-          <Terminal lines={HERMES_SESSION} showCursor fontSize={14.5} />
+          <Session
+            harness={AGENTS.hermes.harness}
+            width={700}
+            height={336 - 36}
+            events={HERMES_EVENTS}
+            status="idle"
+            spinnerFrame={frame}
+            fontSize={13}
+          />
         </TerminalNode>
       </div>
 
@@ -249,7 +231,16 @@ export const ActMultiplayer: React.FC = () => {
             ...(takenOver ? [viewer(0)] : []),
           ]}
         >
-          <Terminal lines={takenOver ? ATHENA_TAKEN : ATHENA_AFTER} showCursor fontSize={14.5} />
+          <Session
+            harness={AGENTS.athena.harness}
+            width={700}
+            height={336 - 36}
+            events={takenOver ? ATHENA_EVENTS_TAKEN : ATHENA_EVENTS_AFTER}
+            status="working"
+            spinnerFrame={frame}
+            promptText={takenOver ? 'hold on, add a test for the double refund case first' : undefined}
+            fontSize={13}
+          />
         </TerminalNode>
       </div>
 
@@ -267,7 +258,15 @@ export const ActMultiplayer: React.FC = () => {
           glowStrength={secondHuman ? 1 : 0}
           viewers={secondHuman ? [viewer(1)] : []}
         >
-          <Terminal lines={secondHuman ? HYPNOS_TAKEN : HYPNOS_SESSION} showCursor fontSize={13} />
+          <Session
+            harness={AGENTS.hypnos.harness}
+            width={560}
+            height={268 - 36}
+            events={secondHuman ? HYPNOS_EVENTS_TAKEN : HYPNOS_EVENTS}
+            status="working"
+            spinnerFrame={frame}
+            fontSize={12}
+          />
         </TerminalNode>
       </div>
 
