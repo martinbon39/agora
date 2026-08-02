@@ -282,7 +282,9 @@ export const InvitePanel: React.FC<InvitePanelProps> = ({
                   borderRadius: 10,
                   border: `1px solid ${isCopied ? c.primary : c.input}`,
                   fontFamily: font.mono,
-                  fontSize: 22,
+                  // sized so the whole URL fits: a link you cannot read is not a
+                  // link you can hand to someone
+                  fontSize: 20,
                   color: c.foreground,
                 }}
               >
@@ -300,7 +302,7 @@ export const InvitePanel: React.FC<InvitePanelProps> = ({
                 style={{
                   boxSizing: 'border-box',
                   display: 'flex',
-                  width: 150,
+                  width: 130,
                   flexShrink: 0,
                   alignItems: 'center',
                   justifyContent: 'center',

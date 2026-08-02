@@ -22,6 +22,7 @@ import { TerminalNode } from '../ui/TerminalNode';
 import { ChatNode } from '../ui/ChatNode';
 import { StickyNode } from '../ui/StickyNode';
 import { Cursor } from '../ui/Cursor';
+import { InvitePanel, INVITE_HOTSPOT, INVITE_PANEL } from '../ui/InvitePanel';
 import {
   ATHENA_EVENTS_AFTER,
   ATHENA_EVENTS_TAKEN,
@@ -38,6 +39,15 @@ import {
 // more: the button IS the explanation.
 const INVITE_AT = BEAT * 2; // 48, the press
 const HUMANS = BAR; // 96, the room appears and everyone arrives at once
+
+// The panel is centred at rest; the link row it mints grows downward out of it,
+// which keeps the whole moment inside the safe area (bottom lands at y=885).
+const PANEL_X = 960 - INVITE_PANEL.width / 2;
+const PANEL_Y = 540 - INVITE_PANEL.height / 2;
+// The button's hit point in world coordinates, and the offset from the cursor's
+// own origin to the tip of its arrow (path "M4 2" in a 24 box drawn at 18px).
+const HOTSPOT = { x: PANEL_X + INVITE_HOTSPOT.x, y: PANEL_Y + INVITE_HOTSPOT.y };
+const CURSOR_TIP = { x: 3, y: 1.5 };
 const CANVAS_ACT = BAR * 2 + BEAT * 2; // 240, and the camera is already settled on it
 const TAKEOVER = BAR * 4 + BEAT; // 408, and then takes a keyboard that is not theirs
 const SECOND = BAR * 6; // 576, and a second person does the same, elsewhere
@@ -165,73 +175,50 @@ export const ActMultiplayer: React.FC = () => {
 
       <SectionLabel title="Invite anyone." then="Collaborate live." until={BAR * 4 + BEAT * 2} y={78} />
 
-      {/* the invite button, pressed on the beat before the room fills */}
+      {/* The product's own multiplayer panel, pressed on the beat before the
+          room fills. Not a mock: the popover SharePanel opens, at 2.25x. */}
       {frame < HUMANS + BEAT && (
         <div
           style={{
             position: 'absolute',
-            left: 872,
-            top: 476,
+            left: PANEL_X,
+            top: PANEL_Y,
             opacity: interpolate(frame, [8, 20, HUMANS, HUMANS + BEAT], [0, 1, 1, 0], {
               extrapolateLeft: 'clamp',
               extrapolateRight: 'clamp',
             }),
+            // the popover's own entrance, driven from here so it stays on grid
+            transform: `scale(${interpolate(panelIn, [0, 1], [0.97, 1])})`,
+            transformOrigin: '50% 40%',
             zIndex: 40,
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '14px 24px',
-              borderRadius: 12,
-              background: c.primary,
-              color: '#ffffff',
-              fontSize: 26,
-              fontWeight: 600,
-              letterSpacing: -0.3,
-              // it depresses on the press, the way a button does
-              transform: `scale(${pressT > 0 && pressT < 1 ? 0.96 : 1})`,
-              boxShadow: pressed
-                ? `0 0 0 6px ${c.primary}22, 0 10px 30px rgb(0 0 0 / 45%)`
-                : '0 10px 30px rgb(0 0 0 / 45%)',
-            }}
-          >
-            Invite
-          </div>
-          {/* the ring that leaves the button when it is pressed */}
-          {pressed && (
-            <div
-              style={{
-                position: 'absolute',
-                inset: -4,
-                borderRadius: 16,
-                border: `2px solid ${c.primary}`,
-                transform: `scale(${1 + ringT * 0.9})`,
-                opacity: 1 - ringT,
-              }}
-            />
-          )}
+          <InvitePanel pressed={pressed} press={press} reveal={reveal} copied={copied} />
         </div>
       )}
 
-      {/* the cursor that presses it, before the others arrive */}
+      {/* The cursor that presses it. It aims at the button's exported hit point
+          rather than at coordinates typed by hand, and settles five frames
+          before the press so the click reads as deliberate. */}
       {frame < HUMANS && (
-        <Cursor
-          x={interpolate(frame, [0, INVITE_AT], [1180, 1010], {
-            extrapolateLeft: 'clamp',
-            extrapolateRight: 'clamp',
-            easing: expoOut,
-          })}
-          y={interpolate(frame, [0, INVITE_AT], [700, 520], {
-            extrapolateLeft: 'clamp',
-            extrapolateRight: 'clamp',
-            easing: expoOut,
-          })}
-          name={PEERS[0].name}
-          color={PEERS[0].color}
-        />
+        // above the panel's own z-index, or the hand pressing the button is
+        // painted underneath it and disappears
+        <div style={{ position: 'absolute', inset: 0, zIndex: 41 }}>
+          <Cursor
+            x={interpolate(frame, [18, INVITE_AT - 5], [1548, HOTSPOT.x - CURSOR_TIP.x], {
+              extrapolateLeft: 'clamp',
+              extrapolateRight: 'clamp',
+              easing: expoOut,
+            })}
+            y={interpolate(frame, [18, INVITE_AT - 5], [872, HOTSPOT.y - CURSOR_TIP.y], {
+              extrapolateLeft: 'clamp',
+              extrapolateRight: 'clamp',
+              easing: expoOut,
+            })}
+            name={PEERS[0].name}
+            color={PEERS[0].color}
+          />
+        </div>
       )}
 
       <div
