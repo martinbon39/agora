@@ -1,6 +1,6 @@
 # agora — announcement film
 
-An 80-second launch film for agora, built in [Remotion](https://remotion.dev).
+A 77-second launch film for agora, built in [Remotion](https://remotion.dev).
 1920×1080, 60fps, with an original score.
 
 ```sh
@@ -46,29 +46,31 @@ PASS  silence1 is a real hard stop                          13.4 dB below
 
 | Bars | Frames | Section |
 |---|---|---|
-| 0–2 | 0–192 | cold open, one prompt and nine keystrokes |
+| 0–2 | 0–192 | cold open: someone types "how do i win this hackathon" |
 | 2–5 | 192–480 | made for hackathons, made for teams, open source |
-| 5–9 | 480–864 | machine gun, 34 shots ramping a beat to a quarter |
+| 5–9 | 480–864 | machine gun, seven distinct shots strided so none repeats |
 | — | 840–864 | **the hole**: picture and score both stop |
 | 9–11 | 864–1056 | the drop, and the logo |
 | 11–15 | 1056–1440 | a laptop closes in 3D and the session carries on without it |
-| 15–22 | 1440–2112 | **an infinite canvas you can arrange** |
-| 22–26 | 2112–2496 | **Claude, Codex, Gemini, or a plain shell**, each drawing its own TUI |
-| 26–31 | 2496–2976 | **agents that talk to each other** (no humans on screen) |
-| 31–40 | 2976–3840 | **invite anyone**: cursors, acting on the canvas, taking a keyboard |
-| 40–45 | 3840–4320 | climax, the whole room, holding tempo rather than accelerating |
-| — | 4296–4320 | the second hole |
-| 45–50 | 4320–4800 | lockup |
+| 15–20 | 1440–1920 | **an infinite canvas you can arrange** |
+| 20–24 | 1920–2304 | **Claude, Codex, Gemini or a plain shell**, each drawing its own TUI |
+| 24–29 | 2304–2784 | **agents that talk to each other** (no humans on screen) |
+| 29–38 | 2784–3648 | **invite anyone**: a button, three cursors at once, taking a keyboard |
+| 38–43 | 3648–4128 | climax, holding tempo rather than accelerating |
+| — | 4104–4128 | the second hole |
+| 43–48 | 4128–4608 | lockup |
 
-80s at 60fps. The four bolded acts are half the runtime: they are what the
-product actually is. Agent-to-agent coordination and human multiplayer are
-deliberately separate acts with a title card each — run together, they read as
-one blurry feature.
+76.8s at 60fps. Four bolded acts, half the runtime.
 
-Each act gets a title and nothing else. There is no kicker above it and at most
-one caption below, at the beat where the act turns: a cursor landing inside
-someone else's terminal, and that terminal printing "martin joined this
-session", does not need a caption explaining what you are looking at.
+Every terminal renders the real interface of whichever harness is running in it
+(`src/lib/Session.tsx` picks by harness), so a Codex session is visibly Codex
+wherever it appears. Sessions are written as TUI events in `src/content.ts`.
+
+Type does not spring. Headlines slide up from behind a mask on expo-out
+(`cubic-bezier(0.19, 1, 0.22, 1)`), 16 frames, 4 frames of stagger per word,
+nothing scales, and the reveal finishes ON the beat rather than starting there.
+A spring models a physical system you can interrupt; a word in a cut film is
+neither physical nor interruptible.
 
 ## Where the look comes from
 
