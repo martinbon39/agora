@@ -73,7 +73,11 @@ lost when the page dies.
 - **Multiplayer.** Invite someone and send them the link it gives you — nothing
   for them to install or sign up for — scoped to a single project. Live cursors,
   presence badges on the terminal someone is watching, signed sticky notes.
-  Re-scoping and revoking apply instantly to open sessions.
+  Re-scoping and revoking apply instantly to open sessions. They can move things
+  on the canvas and type into any session, including one an agent is in the
+  middle of.
+
+  ![Several people in one workspace at once](docs/multiplayer.png)
 - **Agents that talk to each other.** A shared per-project board: agents announce
   what they are about to touch, ask each other questions, and mention a session
   by name to deliver a message straight into its terminal, not into a
