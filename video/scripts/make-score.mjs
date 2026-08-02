@@ -45,7 +45,11 @@ const MARKS = {
   actTerminals: 11,
   actCanvas: 16,
   actHarnesses: 24,
-  actMultiplayer: 28,
+  // Two separate promises, so two separate acts: agents coordinating with each
+  // other, and then humans joining. Stacked into one act they read as one
+  // blurry idea.
+  actAgentTalk: 28,
+  actMultiplayer: 34,
   climax: 43,
   silence2: 47.75,
   lockup: 48,
@@ -430,7 +434,7 @@ for (let bar = 0; bar < TOTAL_BARS; bar++) {
 
   // --- body: the three feature acts
   if (isBody) {
-    const intensity = inRange(bar, MARKS.actMultiplayer, MARKS.climax) ? 1 : 0.85;
+    const intensity = inRange(bar, MARKS.actAgentTalk, MARKS.climax) ? 1 : 0.85;
     for (let b = 0; b < 4; b++) {
       const t = b0 + Math.round(b * SPB);
       kick(t, 0.95);

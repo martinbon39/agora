@@ -1,68 +1,37 @@
-// 0:36.8–0:54.4 — act three: multiplayer. The longest act, and the reason the
-// film exists.
+// Act five: invite anyone.
 //
-// It builds in four moves, one every two or three bars:
-//   1. two agents working the same repo at once
-//   2. the board — they announce what they are about to touch
-//   3. an @mention actually being delivered into another session's terminal
-//   4. humans arrive: live cursors, presence on the terminal being watched
+// The previous act was agents coordinating with each other. This one is about
+// people, and it is a separate act on purpose — the two were stacked into one
+// and the ideas blurred together, so neither promise landed.
+//
+// It escalates in three steps, each a stronger claim than the last:
+//   1. humans arrive, and you can see where each of them is looking
+//   2. they act on the canvas itself rather than watching it
+//   3. they type into an agent's session that is not theirs
 
 import React from 'react';
-import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
-import { c, font, term, AGENTS } from '../brand/tokens';
+import { interpolate, useCurrentFrame } from 'remotion';
+import { c, term, AGENTS } from '../brand/tokens';
 import { BAR, BEAT } from '../lib/beats';
-import { rise, sp, springTo } from '../lib/motion';
+import { rise, sp } from '../lib/motion';
 import { Caption, SectionLabel } from '../lib/Caption';
 import { Stage } from '../lib/Stage';
 import { CanvasBackground } from '../ui/CanvasBackground';
 import { Terminal, type TermLine } from '../ui/Terminal';
 import { TerminalNode } from '../ui/TerminalNode';
 import { ChatNode } from '../ui/ChatNode';
+import { StickyNode } from '../ui/StickyNode';
 import { Cursor } from '../ui/Cursor';
-import { ATHENA_SESSION, BOARD, HERMES_SESSION, HYPNOS_SESSION, PEERS } from '../content';
+import { BOARD, HERMES_SESSION, HYPNOS_SESSION, PEERS } from '../content';
+import { ATHENA_AFTER } from './ActAgentTalk';
 
-const BOARD_IN = BAR * 2; // 192
-const DELIVER = BAR * 5; // 480, the mention lands
-const HUMANS = BAR * 7; // 672
-const WIDEN = BAR * 9; // 864
-const TAKEOVER = BAR * 11; // 1056, a human walks into someone else's session
-const SECOND_HUMAN = BAR * 13; // 1248, and a second one does the same, elsewhere
+const HUMANS = BAR; // 96, the first person arrives
+const CANVAS_ACT = BAR * 3; // 288, somebody puts something on the canvas
+const TAKEOVER = BAR * 5; // 480, and then takes a keyboard that is not theirs
+const SECOND = BAR * 7; // 672, and a second person does the same, elsewhere
 
-const countChars = (lines: TermLine[]) =>
-  lines.reduce((n, l) => n + l.spans.reduce((m, s) => m + s.text.length, 0), 0);
-
-const HERMES_CHARS = countChars(HERMES_SESSION);
-const ATHENA_CHARS = countChars(ATHENA_SESSION);
-
-// What athena's session shows once the mention reaches her.
-//
-// This has to be the message that was actually sent, attributed to the sender.
-// It previously read "@hermes released billing.ts", which put the wrong name in
-// the magenta mention slot right after a pill saying "@athena" flew across the
-// screen — the two read as the same token and the delivery looked mis-addressed.
-const ATHENA_AFTER: TermLine[] = [
-  ...ATHENA_SESSION,
-  { spans: [{ text: '' }] },
-  {
-    spans: [
-      { text: '← message from ', color: term.brightBlack },
-      { text: 'hermes', color: term.magenta, bold: true },
-    ],
-  },
-  {
-    spans: [
-      { text: '  ' },
-      { text: 'billing.ts', color: term.blue },
-      { text: ' is yours. Pushed at 18:34, tests green.' },
-    ],
-  },
-  { spans: [{ text: '✓', color: term.green }, { text: ' approved. writing refund path' }] },
-];
-
-// And what it shows when a human walks in and takes the keyboard. This is the
-// thing agora does that a chat window cannot: athena is somebody else's session
-// on somebody else's canvas, and martin can still type into it.
-const ATHENA_TAKEOVER: TermLine[] = [
+/** athena's session once martin steps into it */
+const ATHENA_TAKEN: TermLine[] = [
   ...ATHENA_AFTER,
   { spans: [{ text: '' }] },
   {
@@ -80,7 +49,7 @@ const ATHENA_TAKEOVER: TermLine[] = [
   },
 ];
 
-// hypnos's session once lea steps into it
+/** hypnos's session once lea steps into it */
 const HYPNOS_TAKEN: TermLine[] = [
   ...HYPNOS_SESSION,
   { spans: [{ text: '' }] },
@@ -94,49 +63,38 @@ const HYPNOS_TAKEN: TermLine[] = [
   { spans: [{ text: '› ', color: term.brightBlack }, { text: 'write the backup step first' }] },
 ];
 
-// Each human flies in from off-frame and then moves between the things they are
-// looking at. A presence badge in a node header only means something if the
-// cursor agrees with it, so every badge in this scene has a cursor on it.
-//
-// Legs are absolute screen positions, applied in order. The nodes live inside a
-// group that scales 0.84 about (960, 496.8) and lifts -40 at WIDEN, so these
-// were read off the post-transform positions: hermes centres near (557, 436),
-// athena near (1363, 436), hypnos near (464, 751).
 type Leg = { at: number; x: number; y: number };
-const PEER_ARRIVALS: {
+const ARRIVALS: {
   peer: (typeof PEERS)[number];
   at: number;
   from: { x: number; y: number };
   legs: Leg[];
 }[] = [
   {
-    peer: PEERS[0],
+    peer: PEERS[0], // martin: hermes, then into athena's session
     at: HUMANS,
     from: { x: -80, y: 980 },
     legs: [
-      { at: HUMANS, x: 470, y: 520 },
-      // and then straight into athena's session, which is not his
-      { at: TAKEOVER, x: 1315, y: 402 },
+      { at: HUMANS, x: 452, y: 424 },
+      { at: TAKEOVER, x: 1372, y: 382 },
     ],
   },
   {
-    peer: PEERS[1],
+    peer: PEERS[1], // lea: athena, then into hypnos's session
     at: HUMANS + BEAT,
     from: { x: 2040, y: 900 },
     legs: [
-      { at: HUMANS + BEAT, x: 1430, y: 505 },
-      // martin has athena, so lea goes to hypnos. Two humans, two sessions,
-      // neither of which is theirs.
-      { at: SECOND_HUMAN, x: 566, y: 806 },
+      { at: HUMANS + BEAT, x: 1462, y: 428 },
+      { at: SECOND, x: 356, y: 728 },
     ],
   },
   {
-    peer: PEERS[2],
+    peer: PEERS[2], // sam: the board, then drops a note onto the canvas
     at: HUMANS + BEAT * 2,
     from: { x: 900, y: 1160 },
     legs: [
-      { at: HUMANS + BEAT * 2, x: 1180, y: 880 },
-      { at: WIDEN, x: 470, y: 745 },
+      { at: HUMANS + BEAT * 2, x: 962, y: 812 },
+      { at: CANVAS_ACT, x: 1452, y: 648 },
     ],
   },
 ];
@@ -144,226 +102,120 @@ const PEER_ARRIVALS: {
 export const ActMultiplayer: React.FC = () => {
   const frame = useCurrentFrame();
 
-  // the whole board pulls back a little for the last two bars
-  const zoom = springTo(frame, WIDEN, 1, 0.84, 'glide');
-  const lift = springTo(frame, WIDEN, 0, -40, 'glide');
+  const watchHermes = rise(frame, HUMANS + 12, 20);
+  const watchAthena = rise(frame, HUMANS + BEAT + 12, 20);
 
-  const hermesTyped = interpolate(frame, [10, 150], [0, HERMES_CHARS], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
-  const athenaTyped = interpolate(frame, [40, 190], [0, ATHENA_CHARS], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
+  const takenOver = frame >= TAKEOVER + 16;
+  const secondHuman = frame >= SECOND + 16;
+  const takeoverPunch = takenOver ? Math.max(0, 1 - (frame - TAKEOVER - 16) / 16) : 0;
 
-  // messages land one per beat once the board is in
-  const visibleMessages = Math.max(
-    0,
-    Math.min(BOARD.length, Math.floor((frame - BOARD_IN) / BEAT) + 1),
-  );
+  // sam pulls a note onto the canvas: it flies in under the cursor and settles
+  const noteIn = sp(frame, CANVAS_ACT, 'glide');
+  const noteX = interpolate(noteIn, [0, 1], [1560, 1330]);
+  const noteY = interpolate(noteIn, [0, 1], [900, 632]);
 
-  const boardIn = sp(frame, BOARD_IN, 'snappy');
-
-  // the mention travelling from the board to athena's header
-  const travel = interpolate(frame, [DELIVER, DELIVER + 18], [0, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
-  const delivered = frame >= DELIVER + 18;
-  const landFlash = delivered
-    ? Math.max(0, 1 - (frame - (DELIVER + 18)) / 16)
-    : 0;
-
-  // the takeover: martin's cursor reaches athena's node, then he types in it
-  const takenOver = frame >= TAKEOVER + 14;
-  const secondHuman = frame >= SECOND_HUMAN + 14;
-  const takeoverTyped = interpolate(
-    frame,
-    [TAKEOVER + 14, TAKEOVER + 96],
-    [countChars(ATHENA_AFTER), countChars(ATHENA_TAKEOVER)],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
-  );
-
-  // presence: who is watching what, and from when
-  const watchHermes = rise(frame, HUMANS + BEAT, 20);
-  const watchAthena = rise(frame, HUMANS + BEAT * 2, 20);
+  const viewer = (i: number) => ({ name: PEERS[i].name, color: PEERS[i].color });
 
   return (
     <Stage>
-      <CanvasBackground opacity={0.75} offsetX={frame * 0.3} offsetY={-frame * 0.12} />
+      <CanvasBackground opacity={0.75} offsetX={frame * 0.3} offsetY={-frame * 0.1} />
 
-      <SectionLabel
-        kicker="built for teams"
-        title="Agents that talk to each other"
-        x={120}
-        y={78}
-      />
+      <SectionLabel kicker="multiplayer" title="Invite anyone into the room" y={78} />
 
-      <AbsoluteFill
+      {/* hermes */}
+      <div style={{ position: 'absolute', left: 110, top: 244 }}>
+        <TerminalNode
+          name="hermes"
+          harness={AGENTS.hermes.harness}
+          state="idle"
+          stateLabel="idle"
+          path="~/projects/checkout"
+          width={700}
+          height={336}
+          glowColor={PEERS[0].color}
+          glowStrength={takenOver ? 0 : watchHermes}
+          viewers={watchHermes > 0.4 && !takenOver ? [viewer(0)] : []}
+        >
+          <Terminal lines={HERMES_SESSION} showCursor fontSize={14.5} />
+        </TerminalNode>
+      </div>
+
+      {/* athena, whose keyboard martin takes halfway through */}
+      <div
         style={{
-          transform: `scale(${zoom}) translateY(${lift}px)`,
-          transformOrigin: '50% 46%',
+          position: 'absolute',
+          left: 1110,
+          top: 244,
+          transform: `scale(${1 + takeoverPunch * 0.02})`,
         }}
       >
-        {/* hermes, left */}
+        <TerminalNode
+          name="athena"
+          harness={AGENTS.athena.harness}
+          state="working"
+          stateLabel="working"
+          path="~/projects/checkout"
+          width={700}
+          height={336}
+          glowColor={takenOver ? PEERS[0].color : PEERS[1].color}
+          glowStrength={takenOver ? 1 : watchAthena}
+          viewers={[
+            ...(watchAthena > 0.4 && !takenOver ? [viewer(1)] : []),
+            ...(takenOver ? [viewer(0)] : []),
+          ]}
+        >
+          <Terminal lines={takenOver ? ATHENA_TAKEN : ATHENA_AFTER} showCursor fontSize={14.5} />
+        </TerminalNode>
+      </div>
+
+      {/* hypnos, whose keyboard lea takes at the end */}
+      <div style={{ position: 'absolute', left: 110, top: 608 }}>
+        <TerminalNode
+          name="hypnos"
+          harness={AGENTS.hypnos.harness}
+          state="working"
+          stateLabel="working"
+          path="~/projects/checkout"
+          width={560}
+          height={268}
+          glowColor={PEERS[1].color}
+          glowStrength={secondHuman ? 1 : 0}
+          viewers={secondHuman ? [viewer(1)] : []}
+        >
+          <Terminal lines={secondHuman ? HYPNOS_TAKEN : HYPNOS_SESSION} showCursor fontSize={13} />
+        </TerminalNode>
+      </div>
+
+      {/* the board, carried over from the act before */}
+      <div style={{ position: 'absolute', left: 712, top: 596, zIndex: 5 }}>
+        <ChatNode width={560} height={404} messages={BOARD} visibleCount={BOARD.length} />
+      </div>
+
+      {/* a human putting something ON the canvas, not just reading it */}
+      {frame >= CANVAS_ACT && (
         <div
           style={{
             position: 'absolute',
-            left: 110,
-            top: 268,
-            transform: `translateY(${(1 - sp(frame, 0, 'glide')) * 40}px)`,
-            opacity: sp(frame, 0, 'glide'),
+            left: noteX,
+            top: noteY,
+            transform: `rotate(${interpolate(noteIn, [0, 1], [-7, -2])}deg)`,
+            opacity: interpolate(noteIn, [0, 0.25], [0, 1], { extrapolateRight: 'clamp' }),
+            zIndex: 6,
           }}
         >
-          <TerminalNode
-            name="hermes"
-            harness={AGENTS.hermes.harness}
-            state={delivered ? 'idle' : 'working'}
-            stateLabel={delivered ? 'idle' : 'working'}
-            path="~/projects/checkout"
-            width={740}
-            height={392}
-            glowColor={PEERS[0].color}
-            glowStrength={takenOver ? 0 : watchHermes}
-            viewers={
-              watchHermes > 0.4 && !takenOver
-                ? [{ name: PEERS[0].name, color: PEERS[0].color }]
-                : []
-            }
-          >
-            <Terminal lines={HERMES_SESSION} visibleChars={hermesTyped} showCursor fontSize={14.5} />
-          </TerminalNode>
+          <StickyNode
+            width={250}
+            height={210}
+            color="lime"
+            text="judging at 19:00. freeze main at 18:30."
+            author="sam"
+          />
         </div>
+      )}
 
-        {/* athena, right — the one the mention is aimed at */}
-        <div
-          style={{
-            position: 'absolute',
-            left: 1070,
-            top: 268,
-            transform: `translateY(${(1 - sp(frame, BEAT, 'glide')) * 40}px) scale(${
-              1 + landFlash * 0.02
-            })`,
-            opacity: sp(frame, BEAT, 'glide'),
-          }}
-        >
-          <TerminalNode
-            name="athena"
-            harness={AGENTS.athena.harness}
-            state={delivered ? 'working' : 'needs_approval'}
-            stateLabel={delivered ? 'working' : 'needs approval'}
-            path="~/projects/checkout"
-            width={740}
-            height={392}
-            glowColor={
-              takenOver
-                ? PEERS[0].color
-                : delivered && landFlash > 0
-                  ? term.magenta
-                  : PEERS[1].color
-            }
-            glowStrength={Math.max(landFlash, watchAthena, takenOver ? 1 : 0)}
-            viewers={[
-              ...(watchAthena > 0.4 ? [{ name: PEERS[1].name, color: PEERS[1].color }] : []),
-              ...(takenOver ? [{ name: PEERS[0].name, color: PEERS[0].color }] : []),
-            ]}
-          >
-            <Terminal
-              lines={takenOver ? ATHENA_TAKEOVER : delivered ? ATHENA_AFTER : ATHENA_SESSION}
-              visibleChars={
-                takenOver ? takeoverTyped : delivered ? undefined : athenaTyped
-              }
-              showCursor
-              fontSize={14.5}
-            />
-          </TerminalNode>
-        </div>
-
-        {/* hypnos joins for the wide shot */}
-        {frame >= WIDEN && (
-          <div
-            style={{
-              position: 'absolute',
-              // left-aligned under hermes and stopping short of x=655, so it
-              // clears the board rather than sitting underneath it
-              left: 110,
-              top: 690,
-              transform: `scale(${interpolate(sp(frame, WIDEN, 'punch'), [0, 1], [0.85, 1])})`,
-              opacity: sp(frame, WIDEN, 'punch'),
-            }}
-          >
-            <TerminalNode
-              name="hypnos"
-              harness={AGENTS.hypnos.harness}
-              state="working"
-              stateLabel="working"
-              path="~/projects/checkout"
-              width={520}
-              height={290}
-              glowColor={secondHuman ? PEERS[1].color : PEERS[2].color}
-              glowStrength={Math.max(rise(frame, WIDEN + BEAT, 20), secondHuman ? 1 : 0)}
-              viewers={[
-                { name: PEERS[2].name, color: PEERS[2].color },
-                ...(secondHuman ? [{ name: PEERS[1].name, color: PEERS[1].color }] : []),
-              ]}
-            >
-              <Terminal
-                lines={secondHuman ? HYPNOS_TAKEN : HYPNOS_SESSION}
-                showCursor
-                fontSize={13}
-              />
-            </TerminalNode>
-          </div>
-        )}
-
-        {/* the board */}
-        {frame >= BOARD_IN && (
-          <div
-            style={{
-              position: 'absolute',
-              left: 655,
-              top: 640,
-              transform: `translateY(${(1 - boardIn) * 60}px)`,
-              opacity: boardIn,
-              zIndex: 5,
-            }}
-          >
-            <ChatNode width={610} height={390} messages={BOARD} visibleCount={visibleMessages} />
-          </div>
-        )}
-
-        {/* the mention in flight: board -> athena's header */}
-        {frame >= DELIVER && !delivered && (
-          <div
-            style={{
-              position: 'absolute',
-              left: interpolate(travel, [0, 1], [900, 1420]),
-              top: interpolate(travel, [0, 1], [800, 292]),
-              zIndex: 20,
-              transform: `scale(${interpolate(travel, [0, 0.5, 1], [0.6, 1.15, 0.9])})`,
-              opacity: interpolate(travel, [0, 0.1, 0.9, 1], [0, 1, 1, 0.4]),
-              fontFamily: font.mono,
-              fontSize: 22,
-              fontWeight: 700,
-              padding: '6px 14px',
-              borderRadius: 999,
-              background: term.magenta,
-              color: '#1c1917',
-              boxShadow: `0 0 30px ${term.magenta}`,
-              filter: `blur(${interpolate(travel, [0, 0.3, 0.8, 1], [0, 1.5, 1.5, 0])}px)`,
-            }}
-          >
-            @athena
-          </div>
-        )}
-      </AbsoluteFill>
-
-      {/* live cursors */}
-      {PEER_ARRIVALS.map(({ peer, at, from, legs }) => {
+      {ARRIVALS.map(({ peer, at, from, legs }) => {
         if (frame < at) return null;
         const t = frame - at;
-        // walk the legs in order: each one eases from where the previous left off
         let x = from.x;
         let y = from.y;
         let prev = from;
@@ -374,13 +226,12 @@ export const ActMultiplayer: React.FC = () => {
           y += (leg.y - prev.y) * move;
           prev = leg;
         }
-        // a small idle drift so nobody ever looks parked
         const drift = Math.max(0, t - 40);
         return (
           <Cursor
             key={peer.name}
-            x={x + Math.sin(drift / 29) * 22}
-            y={y + Math.cos(drift / 37) * 15}
+            x={x + Math.sin(drift / 29) * 20}
+            y={y + Math.cos(drift / 37) * 14}
             name={peer.name}
             color={peer.color}
             opacity={interpolate(t, [0, 8], [0, 1], { extrapolateRight: 'clamp' })}
@@ -388,28 +239,22 @@ export const ActMultiplayer: React.FC = () => {
         );
       })}
 
-      <Caption from={BAR} until={BOARD_IN + BEAT} x={120} y={886} size={26} width={500}>
-        Several agents on one repo, each in its own session.
+      <Caption from={HUMANS + BEAT * 2} until={CANVAS_ACT} x={120} y={900} size={26} width={520}>
+        Invite someone and scope them to one project. You see their cursor, and a badge on
+        whatever terminal they are looking at.
       </Caption>
-      <Caption from={BOARD_IN + BEAT} until={DELIVER} x={120} y={886} size={26} width={500}>
-        They announce what they are about to touch, so nobody overwrites anybody.{' '}
-        <span style={{ color: c.foreground }}>Coordination you can read.</span>
+      <Caption from={CANVAS_ACT + 20} until={TAKEOVER} x={120} y={900} size={26} width={520}>
+        They are <span style={{ color: c.foreground }}>on the canvas with you</span>: move a
+        node, pin a note, answer on the board. Everyone sees it happen.
       </Caption>
-      <Caption from={DELIVER + 20} until={HUMANS} x={120} y={886} size={26} width={500}>
-        <span style={{ color: term.magenta }}>@mention</span> a session and the message lands{' '}
-        <span style={{ color: c.foreground }}>inside its terminal</span>.
+      <Caption from={TAKEOVER + 22} until={SECOND} x={120} y={900} size={26} width={520}>
+        And they can walk into an agent&apos;s terminal and{' '}
+        <span style={{ color: c.foreground }}>take the keyboard</span>. Same pty, not a
+        screenshare.
       </Caption>
-      <Caption from={HUMANS + BEAT * 3} until={TAKEOVER} x={120} y={886} size={26} width={500}>
-        Invite a human too. Live cursors, presence on the terminal someone is watching.
-      </Caption>
-      <Caption from={TAKEOVER + 18} until={SECOND_HUMAN + 18} x={120} y={886} size={26} width={500}>
-        And you can walk into someone else&apos;s terminal and{' '}
-        <span style={{ color: c.foreground }}>take the keyboard</span>. It is the same
-        pty, not a screenshare.
-      </Caption>
-      <Caption from={SECOND_HUMAN + 18} x={120} y={886} size={26} width={520}>
-        <span style={{ color: c.foreground }}>Three people and four agents</span> in one
-        workspace, at the same time, each one able to type into any of it.
+      <Caption from={SECOND + 22} x={120} y={900} size={26} width={520}>
+        <span style={{ color: c.foreground }}>Three people and three agents</span>, one
+        workspace, at the same time. Nobody waiting for a turn.
       </Caption>
     </Stage>
   );
