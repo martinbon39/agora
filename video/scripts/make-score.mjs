@@ -25,7 +25,7 @@ const FPS = 60;
 const SPB = (60 / BPM) * SR; // samples per beat = 17640
 const BEATS_PER_BAR = 4;
 const SPBAR = SPB * BEATS_PER_BAR;
-const TOTAL_BARS = 53;
+const TOTAL_BARS = 50;
 const N = Math.round(SPBAR * TOTAL_BARS); // 3,245,760 samples ≈ 73.6s
 
 const barAt = (bar, beat = 0) => Math.round(bar * SPBAR + beat * SPB);
@@ -43,16 +43,16 @@ const MARKS = {
   silence1: 8.75, // last beat of bar 8 — the hole before the drop
   drop: 9,
   actTerminals: 11,
-  actCanvas: 16,
-  actHarnesses: 24,
+  actCanvas: 15,
+  actHarnesses: 22,
   // Two separate promises, so two separate acts: agents coordinating with each
   // other, and then humans joining. Stacked into one act they read as one
   // blurry idea.
-  actAgentTalk: 28,
-  actMultiplayer: 34,
-  climax: 43,
-  silence2: 47.75,
-  lockup: 48,
+  actAgentTalk: 26,
+  actMultiplayer: 31,
+  climax: 40,
+  silence2: 44.75,
+  lockup: 45,
   end: TOTAL_BARS,
 };
 

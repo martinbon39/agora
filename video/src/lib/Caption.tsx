@@ -6,37 +6,26 @@ import { interpolate, useCurrentFrame } from 'remotion';
 import { c, font } from '../brand/tokens';
 import { rise, sp } from './motion';
 
+/**
+ * A title, and nothing under it. There used to be a kicker line above and a
+ * caption below; Martin's note was that a main title does not need a second
+ * line explaining it, and he was right — the visual underneath is the
+ * explanation.
+ */
 export const SectionLabel: React.FC<{
-  kicker?: string;
   title: string;
   from?: number;
   x?: number;
   y?: number;
   size?: number;
-}> = ({ kicker, title, from = 0, x = 120, y = 110, size = 62 }) => {
+}> = ({ title, from = 0, x = 120, y = 110, size = 66 }) => {
   const frame = useCurrentFrame();
   const a = rise(frame, from, 20);
   const b = rise(frame, from + 6, 24);
   return (
     <div style={{ position: 'absolute', left: x, top: y }}>
-      {kicker ? (
-        <div
-          style={{
-            fontFamily: font.sans,
-            fontSize: 25,
-            fontWeight: 500,
-            letterSpacing: -0.2,
-            color: c.primary,
-            opacity: a,
-            transform: `translateY(${(1 - a) * 10}px)`,
-          }}
-        >
-          {kicker}
-        </div>
-      ) : null}
       <div
         style={{
-          marginTop: 14,
           fontSize: size,
           fontWeight: 700,
           letterSpacing: -1.6,

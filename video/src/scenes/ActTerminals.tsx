@@ -79,7 +79,7 @@ export const ActTerminals: React.FC = () => {
 
       {!dead && (
         <>
-          <SectionLabel kicker="real terminals, not a log viewer" title="Close the laptop. It keeps running." />
+          <SectionLabel title="Close the laptop. It keeps running." />
 
           <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center' }}>
             <div

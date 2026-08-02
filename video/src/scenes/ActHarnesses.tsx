@@ -127,7 +127,6 @@ export const ActHarnesses: React.FC = () => {
       <CanvasBackground opacity={0.6} offsetY={-frame * 0.15} />
 
       <SectionLabel
-        kicker="bring your own engine"
         title="Claude, Codex, Gemini, or a plain shell"
         size={54}
       />

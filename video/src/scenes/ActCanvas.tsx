@@ -268,7 +268,7 @@ export const ActCanvas: React.FC = () => {
         }}
       />
 
-      <SectionLabel kicker="one project, one workspace" title="An infinite canvas you can arrange" from={BEAT} />
+      <SectionLabel title="An infinite canvas you can arrange" from={BEAT} />
 
       {frame >= DRAG_FROM - BEAT && (
         <Cursor
@@ -287,11 +287,6 @@ export const ActCanvas: React.FC = () => {
         />
       )}
 
-      <Caption from={BAR * 3} until={BAR * 5} y={906}>
-        Terminals, notes, boards and live previews, laid out side by side instead of
-        stacked in tabs. <span style={{ color: c.foreground }}>Move things where you
-        want them. It stays that way.</span>
-      </Caption>
       <Caption from={DRAG_FROM + BEAT * 2} y={906}>
         Drag things where they make sense. The layout is saved with the project, so
         it is still there tomorrow{' '}

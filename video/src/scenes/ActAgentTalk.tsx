@@ -22,7 +22,7 @@ import { ChatNode } from '../ui/ChatNode';
 import { ATHENA_SESSION, BOARD, HERMES_SESSION } from '../content';
 
 const BOARD_IN = BAR * 2; // 192
-const DELIVER = BAR * 4; // 384, the mention leaves the board
+const DELIVER = BAR * 3; // 288, the mention leaves the board
 const LANDED = DELIVER + 18;
 
 const countChars = (lines: TermLine[]) =>
@@ -78,7 +78,7 @@ export const ActAgentTalk: React.FC = () => {
     <Stage>
       <CanvasBackground opacity={0.75} offsetX={frame * 0.3} offsetY={-frame * 0.12} />
 
-      <SectionLabel kicker="they coordinate without you" title="Agents that talk to each other" y={78} />
+      <SectionLabel title="Agents that talk to each other" y={78} />
 
       {/* hermes */}
       <div
@@ -176,13 +176,6 @@ export const ActAgentTalk: React.FC = () => {
         </div>
       )}
 
-      <Caption from={BEAT * 2} until={BOARD_IN + BEAT} x={120} y={886} size={26} width={500}>
-        Several agents on one repo, each in its own session.
-      </Caption>
-      <Caption from={BOARD_IN + BEAT} until={DELIVER} x={120} y={886} size={26} width={500}>
-        They announce what they are about to touch, so nobody overwrites anybody.{' '}
-        <span style={{ color: c.foreground }}>Coordination you can read.</span>
-      </Caption>
       <Caption from={LANDED + 4} x={120} y={886} size={26} width={500}>
         <span style={{ color: term.magenta }}>@mention</span> a session and the message lands{' '}
         <span style={{ color: c.foreground }}>inside its terminal</span>, not in a notification.

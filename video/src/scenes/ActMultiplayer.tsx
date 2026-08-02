@@ -120,7 +120,7 @@ export const ActMultiplayer: React.FC = () => {
     <Stage>
       <CanvasBackground opacity={0.75} offsetX={frame * 0.3} offsetY={-frame * 0.1} />
 
-      <SectionLabel kicker="multiplayer" title="Invite anyone into the room" y={78} />
+      <SectionLabel title="Invite anyone into the room" y={78} />
 
       {/* hermes */}
       <div style={{ position: 'absolute', left: 110, top: 244 }}>
@@ -239,19 +239,6 @@ export const ActMultiplayer: React.FC = () => {
         );
       })}
 
-      <Caption from={HUMANS + BEAT * 2} until={CANVAS_ACT} x={120} y={900} size={26} width={520}>
-        Invite someone and scope them to one project. You see their cursor, and a badge on
-        whatever terminal they are looking at.
-      </Caption>
-      <Caption from={CANVAS_ACT + 20} until={TAKEOVER} x={120} y={900} size={26} width={520}>
-        They are <span style={{ color: c.foreground }}>on the canvas with you</span>: move a
-        node, pin a note, answer on the board. Everyone sees it happen.
-      </Caption>
-      <Caption from={TAKEOVER + 22} until={SECOND} x={120} y={900} size={26} width={520}>
-        And they can walk into an agent&apos;s terminal and{' '}
-        <span style={{ color: c.foreground }}>take the keyboard</span>. Same pty, not a
-        screenshare.
-      </Caption>
       <Caption from={SECOND + 22} x={120} y={900} size={26} width={520}>
         <span style={{ color: c.foreground }}>Three people and three agents</span>, one
         workspace, at the same time. Nobody waiting for a turn.
