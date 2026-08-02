@@ -3,9 +3,10 @@ import pty from "node-pty";
 import { config } from "./config.js";
 import { attachArgs } from "./tmux.js";
 import { sessions } from "./db.js";
+import { keepAlive } from "./heartbeat.js";
 
 interface ClientMessage {
-  t: "i" | "r" | "a";
+  t: "i" | "r" | "a" | "p";
   /** input data (t=i) */
   d?: string;
   /** resize (t=r) */
@@ -91,6 +92,15 @@ export function bridgeSession(ws: WebSocket, sessionId: string, cols: number, ro
           paused = false;
         }
         break;
+      case "p":
+        // Liveness probe from the browser. A protocol-level ping is answered by
+        // the browser itself and so proves nothing to the page's JavaScript,
+        // which cannot observe pongs — the client needs an answer it can see.
+        // Text frame: the client reads binary as pty output.
+        try {
+          ws.send(JSON.stringify({ t: "p" }));
+        } catch {}
+        break;
     }
   });
 
@@ -103,4 +113,7 @@ export function bridgeSession(ws: WebSocket, sessionId: string, cols: number, ro
   };
   ws.on("close", cleanup);
   ws.on("error", cleanup);
+  // A silently dead client would otherwise hold this pty — and its tmux attach
+  // client — for as long as the server runs.
+  keepAlive(ws);
 }

@@ -1,5 +1,6 @@
 import type { WebSocket } from "ws";
 import type { AuthUser } from "./auth.js";
+import { keepAlive } from "./heartbeat.js";
 
 /**
  * Event bus + presence. Every dashboard holds one /ws/events socket; besides
@@ -76,12 +77,20 @@ export function addEventClient(ws: WebSocket, user: AuthUser) {
   const meta: EventClient = { user, clientId: null, project: null, focus: null };
   clients.set(ws, meta);
   trackUserSocket(user.email, ws);
+  // Presence is only true if the sockets behind it are: a peer whose connection
+  // died without a FIN would otherwise stay in every other peer's cursor list.
+  keepAlive(ws);
 
   ws.on("message", (raw) => {
     let msg: { type?: string; [k: string]: unknown };
     try {
       msg = JSON.parse(String(raw));
     } catch {
+      return;
+    }
+    if (msg.type === "ping") {
+      // an answer the page's JavaScript can actually observe — see heartbeat.ts
+      if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: "pong" }));
       return;
     }
     if (msg.type === "hello") {

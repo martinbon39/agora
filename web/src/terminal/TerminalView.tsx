@@ -7,6 +7,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { useTheme } from "@/theme";
 import { api } from "@/api";
+import { keepAlive, type KeepAlive } from "@/lib/keepAlive";
 import { QuickKeys } from "./QuickKeys";
 
 const fileToBase64 = (f: Blob) =>
@@ -309,44 +310,80 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     let disposed = false;
     let retry = 0;
     let unackedBytes = 0;
+    let generation = 0;
+    let heart: KeepAlive | null = null;
 
     const connect = () => {
       if (disposed) return;
+      // Each attempt owns a generation, so a socket we gave up on cannot open a
+      // second one when its onclose finally arrives.
+      const mine = ++generation;
+      const stale = () => disposed || mine !== generation;
       const proto = location.protocol === "https:" ? "wss" : "ws";
-      ws = new WebSocket(
+      const sock = new WebSocket(
         `${proto}://${location.host}/ws/sessions/${sessionId}/attach?cols=${term.cols}&rows=${term.rows}`
       );
-      ws.binaryType = "arraybuffer";
+      ws = sock;
+      sock.binaryType = "arraybuffer";
 
-      ws.onopen = () => {
+      const reconnect = (delay: number, note: string) => {
+        if (stale()) return;
+        generation++;
+        heart?.stop();
+        heart = null;
+        setLive(false);
+        term.write(`\r\n\x1b[33m[agora] ${note} — reconnecting in ${delay}ms\x1b[0m\r\n`);
+        setTimeout(connect, delay);
+      };
+
+      sock.onopen = () => {
+        if (stale()) {
+          sock.close();
+          return;
+        }
         retry = 0;
+        // the server's own ping is answered by the browser and is invisible to
+        // this code, so probe back — see lib/keepAlive.ts
+        heart = keepAlive(sock, { t: "p" }, () =>
+          reconnect(500, "connection went quiet")
+        );
         sendResize();
       };
 
-      ws.onmessage = (ev) => {
-        if (typeof ev.data === "string") return;
+      sock.onmessage = (ev) => {
+        heart?.seen();
+        if (typeof ev.data === "string") return; // the heartbeat's answer
         setLive(true);
         const bytes = new Uint8Array(ev.data as ArrayBuffer);
         term.write(bytes, () => {
           unackedBytes += bytes.length;
           if (unackedBytes >= ACK_EVERY) {
-            ws?.readyState === WebSocket.OPEN &&
-              ws.send(JSON.stringify({ t: "a", n: unackedBytes }));
+            sock.readyState === WebSocket.OPEN &&
+              sock.send(JSON.stringify({ t: "a", n: unackedBytes }));
             unackedBytes = 0;
           }
         });
       };
 
-      ws.onclose = (ev) => {
-        if (disposed) return;
+      sock.onclose = (ev) => {
+        if (stale()) return;
         if (ev.code === 4404) {
+          generation++;
+          heart?.stop();
           term.write("\r\n\x1b[31m[agora] session not found\x1b[0m\r\n");
           onCloseRef.current?.();
           return;
         }
-        const delay = Math.min(500 * 2 ** retry++, 8000);
-        term.write(`\r\n\x1b[33m[agora] disconnected — reconnecting in ${delay}ms\x1b[0m\r\n`);
-        setTimeout(connect, delay);
+        if (ev.code === 4403) {
+          // scope was revoked or narrowed. Retrying is pointless and the retry
+          // loop would hammer the server forever with 401 upgrades.
+          generation++;
+          heart?.stop();
+          term.write(`\r\n\x1b[31m[agora] ${ev.reason || "access revoked"}\x1b[0m\r\n`);
+          onCloseRef.current?.();
+          return;
+        }
+        reconnect(Math.min(500 * 2 ** retry++, 8000), "disconnected");
       };
     };
 
@@ -433,6 +470,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
       for (const ev of ["compositionstart", "compositionupdate", "compositionend"] as const)
         term.textarea?.removeEventListener(ev, markComposition);
       osc52.dispose();
+      heart?.stop();
       ws?.close();
       term.dispose();
       termRef.current = null;

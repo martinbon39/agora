@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import { api, type AgoraNotification, type PresencePeer, type Project, type Session } from "./api";
 import { serverEvents, tabClientId } from "./events";
+import { keepAlive, type KeepAlive } from "./lib/keepAlive";
 import { useCurrentUser } from "./auth/userContext";
 import { enablePush, pushEnabled, pushSupported, registerServiceWorker } from "./push";
 import { TopBar } from "./components/TopBar";
@@ -124,6 +125,8 @@ export default function App() {
 
     let ws: WebSocket | null = null;
     let closed = false;
+    let generation = 0;
+    let heart: KeepAlive | null = null;
     // Self-reloading UI: every deploy restarts the server, which drops and
     // re-opens this socket — compare the build fingerprint on each (re)connect
     // and reload when it changed. No more manual F5 after a deploy.
@@ -140,11 +143,28 @@ export default function App() {
     };
     const connect = () => {
       if (closed) return;
+      // Each attempt owns a generation. A socket we have given up on (see
+      // keepAlive) may still fire onclose later; without this, its late event
+      // would open a second connection alongside the live one.
+      const mine = ++generation;
+      const stale = () => closed || mine !== generation;
       const proto = location.protocol === "https:" ? "wss" : "ws";
-      ws = new WebSocket(`${proto}://${location.host}/ws/events`);
-      ws.onmessage = (ev) => {
+      const sock = new WebSocket(`${proto}://${location.host}/ws/events`);
+      ws = sock;
+      const reconnect = (delay: number) => {
+        if (stale()) return;
+        generation++; // abandon this socket: anything it says from here is ignored
+        heart?.stop();
+        heart = null;
+        serverEvents.setSender(null);
+        setPeers([]);
+        if (!closed) setTimeout(connect, delay);
+      };
+      sock.onmessage = (ev) => {
+        heart?.seen();
         try {
           const msg = JSON.parse(ev.data);
+          if (msg.type === "pong") return; // liveness only, nothing to fan out
           serverEvents.emit(msg); // fan out to feature views (canvas sync…)
           if (msg.type === "session_state") {
             setSessionList((list) =>
@@ -173,9 +193,14 @@ export default function App() {
           }
         } catch {}
       };
-      ws.onopen = () => {
+      sock.onopen = () => {
+        if (stale()) {
+          sock.close();
+          return;
+        }
         checkVersion();
-        const sock = ws!;
+        // the server cannot tell this page the connection died — it probes back
+        heart = keepAlive(sock, { type: "ping" }, () => reconnect(0));
         serverEvents.setSender((msg) => {
           if (sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(msg));
         });
@@ -186,17 +211,14 @@ export default function App() {
           project: activeCanvasRef.current,
         });
       };
-      ws.onclose = () => {
-        serverEvents.setSender(null);
-        setPeers([]);
-        if (!closed) setTimeout(connect, 3000);
-      };
+      sock.onclose = () => reconnect(3000);
     };
     connect();
 
     return () => {
       closed = true;
       clearInterval(timer);
+      heart?.stop();
       window.removeEventListener("hashchange", onHash);
       ws?.close();
     };
