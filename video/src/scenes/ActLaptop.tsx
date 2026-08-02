@@ -35,16 +35,20 @@ const OPEN_FROM = BAR * 3; // 288
 // ── the laptop, in millimetres of nothing ───────────────────────────────────
 const W = 720; // lid + base width
 const H = 460; // lid height
-const D = 470; // base depth
+const D = 460; // base depth — equal to H, so the shut lid covers the deck exactly
 const HINGE_X = 700;
 const HINGE_Y = 720;
-const LID_LIFT = 10; // the closed lid rests this far above the deck
-// The lid and the deck hinge on the same edge but sit on opposite sides of it,
-// so the same rotation sign sends them opposite ways: the deck lies forward at
-// +90, and the lid has to travel the same way, from a slight backward lean to
-// flat on the deck.
-const OPEN_ANGLE = -12; // leaning back, the way an open lid does
-const SHUT_ANGLE = 88;
+const LID_LIFT = 12; // the closed lid rests this far above the deck
+// The lid and the deck hinge on the same edge and sit on opposite sides of it,
+// which is exactly why they need OPPOSITE rotation signs to travel the same
+// way. rotateX sends a point to z = sin(a)·y: the deck lives at y > 0 so +90
+// lays it forward, toward the viewer; the lid lives at y < 0 so it needs a
+// NEGATIVE angle to sweep forward and land on the deck. Positive angles throw
+// the lid backwards, behind the base.
+const OPEN_ANGLE = 12; // leaning back, the way an open lid does
+// A hair past flat, so the shut laptop is a wedge: LID_LIFT of air at the
+// hinge, a couple of pixels at the front lip.
+const SHUT_ANGLE = -91;
 
 const BEZEL_X = 14;
 const BEZEL_TOP = 14;
@@ -204,12 +208,23 @@ export const ActLaptop: React.FC = () => {
 
   // camera: drifts left and looks further down as the lid comes down, then
   // pushes back in when it opens.
+  // tilt is negative for the same reason SHUT_ANGLE is: the deck lies forward
+  // at +z, and only rotateX(-t) brings that forward edge DOWN the screen, which
+  // is what looking down on a laptop means. A positive tilt puts the eye under
+  // the deck — trackpad above the keys, and the shut lid hidden behind the base.
   const dx = 260 - 260 * closeT + 30 * openT;
   const scale = 1.12 - 0.12 * closeT + 0.04 * openT;
-  const tilt = 13 + 7 * closeT - 8 * openT;
+  const tilt = -(13 + 7 * closeT - 8 * openT);
   const yaw = 13 - 7 * closeT + 3 * openT;
   // the thump: a damped settle on the frame the lid lands
   const thump = (1 - sp(frame, SHUT, 'punch')) * 5 * closeT;
+
+  // the pool the machine sits in. The body hangs forward and down from the
+  // hinge, so the shadow belongs below HINGE_Y, not around it; the sideways
+  // nudge tracks the front edge, which perspective throws right while the
+  // camera is still wide.
+  const shadowW = W * 1.25 * scale * (1 - 0.12 * closeT + 0.14 * openT);
+  const shadowH = 250 * scale;
 
   // the session, detaching from the screen and landing with the lid
   const nodeX = springTo(frame, DETACH, NODE_X0, NODE_X, 'glide');
@@ -326,10 +341,10 @@ export const ActLaptop: React.FC = () => {
       <div
         style={{
           position: 'absolute',
-          left: HINGE_X + dx - (W * 0.6 * scale),
-          top: HINGE_Y - 30 * scale,
-          width: W * 1.2 * scale * (1 - 0.18 * closeT + 0.14 * openT),
-          height: 170 * scale,
+          left: HINGE_X + dx + 100 * (1 - closeT) - shadowW / 2,
+          top: HINGE_Y + 230 * scale - shadowH / 2,
+          width: shadowW,
+          height: shadowH,
           borderRadius: '50%',
           background: '#000000',
           opacity: 0.5 + 0.22 * closeT - 0.14 * openT,
