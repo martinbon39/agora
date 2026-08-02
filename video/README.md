@@ -54,14 +54,16 @@ PASS  silence1 is a real hard stop                          13.4 dB below
 | 11–16 | 1056–1536 | close the laptop, it keeps running |
 | 16–24 | 1536–2304 | **an infinite canvas you can arrange** |
 | 24–28 | 2304–2688 | **Claude, Codex, Gemini, or a plain shell** |
-| 28–43 | 2688–4128 | **multiplayer** (the longest act, ending on a human taking a keyboard) |
+| 28–34 | 2688–3264 | **agents that talk to each other** (no humans on screen) |
+| 34–43 | 3264–4128 | **invite anyone**: cursors, acting on the canvas, taking a keyboard |
 | 43–48 | 4128–4608 | climax, the whole room, then fragments |
 | — | 4584–4608 | the second hole |
 | 48–53 | 4608–5088 | lockup |
 
-84.8s at 60fps. The three bolded acts are 51% of the runtime: they are what the
-product actually is, and v1 gave them 40% while the machine gun spent ten
-seconds on footage too fast to read.
+84.8s at 60fps. The four bolded acts are 51% of the runtime: they are what the
+product actually is. Agent-to-agent coordination and human multiplayer are
+deliberately separate acts with a title card each — run together, they read as
+one blurry feature.
 
 ## Where the look comes from
 
