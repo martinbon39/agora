@@ -1,6 +1,6 @@
 # agora — announcement film
 
-A 73-second launch film for agora, built in [Remotion](https://remotion.dev).
+An 85-second launch film for agora, built in [Remotion](https://remotion.dev).
 1920×1080, 60fps, with an original score.
 
 ```sh
@@ -38,25 +38,30 @@ onset flux, and fails if they disagree with `score-map.json`:
 ```
 PASS  tempo recovered from the audio matches the edit grid  measured 150.00 BPM
 PASS  the downbeat is aligned to frame 0 of the grid        0 frame(s) offset
-PASS  the beat dominates the off-beat                       15.67x
-PASS  silence1 is a real hard stop                          10.0 dB below
+PASS  the beat dominates the off-beat                       15.43x
+PASS  silence1 is a real hard stop                          13.4 dB below
 ```
 
 ## Structure
 
 | Bars | Frames | Section |
 |---|---|---|
-| 0–2 | 0–192 | cold open — one prompt, nine keystrokes |
-| 2–5 | 192–480 | the hackathon claim, one word per beat |
-| 5–11 | 480–1056 | machine gun — 48 shots, density ramping to one per 16th |
-| — | 1032–1056 | **the hole**: picture and score both stop |
-| 11–13 | 1056–1248 | the drop, and the logo |
-| 13–18 | 1248–1728 | act 1 — the terminal is real, and outlives you |
-| 18–23 | 1728–2208 | act 2 — the canvas |
-| 23–34 | 2208–3264 | act 3 — **multiplayer** (the longest act) |
-| 34–40 | 3264–3840 | climax — the whole room, then fragments |
-| — | 3816–3840 | the second hole |
-| 40–46 | 3840–4416 | lockup |
+| 0–2 | 0–192 | cold open, one prompt and nine keystrokes |
+| 2–5 | 192–480 | made for hackathons, made for teams, one word per beat |
+| 5–9 | 480–864 | machine gun, 34 shots ramping a beat to a quarter |
+| — | 840–864 | **the hole**: picture and score both stop |
+| 9–11 | 864–1056 | the drop, and the logo |
+| 11–16 | 1056–1536 | close the laptop, it keeps running |
+| 16–24 | 1536–2304 | **an infinite canvas you can arrange** |
+| 24–28 | 2304–2688 | **Claude, Codex, Gemini, or a plain shell** |
+| 28–43 | 2688–4128 | **multiplayer** (the longest act, ending on a human taking a keyboard) |
+| 43–48 | 4128–4608 | climax, the whole room, then fragments |
+| — | 4584–4608 | the second hole |
+| 48–53 | 4608–5088 | lockup |
+
+84.8s at 60fps. The three bolded acts are 51% of the runtime: they are what the
+product actually is, and v1 gave them 40% while the machine gun spent ten
+seconds on footage too fast to read.
 
 ## Where the look comes from
 
