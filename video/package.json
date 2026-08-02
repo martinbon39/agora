@@ -7,7 +7,7 @@
     "setup": "npm run score && npm run fonts",
     "score": "node scripts/make-score.mjs",
     "fonts": "node scripts/embed-fonts.mjs",
-    "check": "node scripts/check-score.mjs",
+    "check": "node scripts/check-score.mjs && node scripts/check-grid.mjs",
     "dev": "remotion studio",
     "render": "remotion render AgoraFilm out/agora-announce.mp4",
     "still": "remotion still AgoraFilm out/still.png"
