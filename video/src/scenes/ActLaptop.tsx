@@ -39,8 +39,12 @@ const D = 470; // base depth
 const HINGE_X = 700;
 const HINGE_Y = 720;
 const LID_LIFT = 10; // the closed lid rests this far above the deck
-const OPEN_ANGLE = 12; // leaning back, the way an open lid does
-const SHUT_ANGLE = -90;
+// The lid and the deck hinge on the same edge but sit on opposite sides of it,
+// so the same rotation sign sends them opposite ways: the deck lies forward at
+// +90, and the lid has to travel the same way, from a slight backward lean to
+// flat on the deck.
+const OPEN_ANGLE = -12; // leaning back, the way an open lid does
+const SHUT_ANGLE = 88;
 
 const BEZEL_X = 14;
 const BEZEL_TOP = 14;
@@ -179,7 +183,7 @@ const Deck: React.FC<{ spill: number }> = ({ spill }) => (
         inset: 0,
         opacity: spill,
         background:
-          'radial-gradient(90% 130% at 50% -10%, rgb(255 255 255 / 20%), rgb(255 255 255 / 0%) 62%)',
+          'radial-gradient(80% 105% at 50% -8%, rgb(255 255 255 / 13%), rgb(255 255 255 / 0%) 55%)',
       }}
     />
   </div>
@@ -200,8 +204,8 @@ export const ActLaptop: React.FC = () => {
 
   // camera: drifts left and looks further down as the lid comes down, then
   // pushes back in when it opens.
-  const dx = 260 - 260 * closeT + 130 * openT;
-  const scale = 1.02 - 0.1 * closeT + 0.09 * openT;
+  const dx = 260 - 260 * closeT + 30 * openT;
+  const scale = 1.12 - 0.12 * closeT + 0.04 * openT;
   const tilt = 13 + 7 * closeT - 8 * openT;
   const yaw = 13 - 7 * closeT + 3 * openT;
   // the thump: a damped settle on the frame the lid lands
@@ -235,9 +239,9 @@ export const ActLaptop: React.FC = () => {
         style={{
           position: 'absolute',
           left: 120,
-          top: 96,
+          top: 90,
           fontFamily: font.sans,
-          fontSize: 58,
+          fontSize: 54,
           fontWeight: 700,
           letterSpacing: -1.8,
           lineHeight: 1.08,
@@ -274,6 +278,7 @@ export const ActLaptop: React.FC = () => {
           left: nodeX,
           top: nodeY,
           width: NODE_W,
+          zIndex: 5,
           opacity: nodeIn,
           transform: `scale(${nodeS})`,
           transformOrigin: 'center center',
@@ -321,14 +326,14 @@ export const ActLaptop: React.FC = () => {
       <div
         style={{
           position: 'absolute',
-          left: HINGE_X + dx - (W * 0.62 * scale),
-          top: HINGE_Y + 118 * scale,
-          width: W * 1.24 * scale * (1 - 0.2 * closeT + 0.16 * openT),
-          height: 120 * scale,
+          left: HINGE_X + dx - (W * 0.6 * scale),
+          top: HINGE_Y - 30 * scale,
+          width: W * 1.2 * scale * (1 - 0.18 * closeT + 0.14 * openT),
+          height: 170 * scale,
           borderRadius: '50%',
           background: '#000000',
           opacity: 0.5 + 0.22 * closeT - 0.14 * openT,
-          filter: `blur(${(58 - 26 * closeT + 20 * openT) * scale}px)`,
+          filter: `blur(${(52 - 24 * closeT + 18 * openT) * scale}px)`,
         }}
       />
 
