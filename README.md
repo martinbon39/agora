@@ -14,17 +14,31 @@ browser window onto them — from your desk, or from your phone on a train.
 
 <br />
 
-<!-- Replace the href with the public video URL once the repo is on GitHub:
-     drag video/out/agora-announce.mp4 into a release or an issue comment and
-     GitHub returns a permanent URL. The poster below is committed, so this
-     block already renders correctly on the repo page. -->
-[![agora — 85 second film](docs/film-poster.png)](docs/film-poster.png)
-
-**[Watch the film](docs/film-poster.png)** · 85 seconds · built with
-[Remotion](https://remotion.dev), score and all, from
-[`video/`](video/) in this repo
+https://github.com/martinbon39/agora/releases/latest/download/agora.mp4
 
 </div>
+
+---
+
+## Install it
+
+agora belongs on a server, not on your laptop. The point is that your agents
+outlive your machine, so a local install throws away the only thing that makes
+it worth running.
+
+**Hand [`PROMPT-INSTALL.md`](PROMPT-INSTALL.md) to your agent** and let it do the
+whole thing. It will ask which VPS you want, which domain, and which agent CLIs
+to install, then provision the box, get TLS working, mint your first passkey, and
+verify the install actually works instead of telling you it did.
+
+```
+Copy PROMPT-INSTALL.md into Claude Code, Codex, or whatever you use.
+```
+
+A 4GB Ubuntu box is enough for a handful of agents. You need a domain: passkeys
+bind to a hostname, so an IP will not do.
+
+Prefer to do it by hand? [Deploying it for real](#deploying-it-for-real) below.
 
 ---
 
@@ -48,6 +62,8 @@ lost when the page dies.
 - **An infinite canvas per project.** Arrange terminals, notes, checklists, file
   viewers and live web previews on one spatial workspace instead of a stack of
   tabs. It persists.
+
+  ![An infinite canvas per project](docs/canvas.png)
 - **Sessions that outlive everything.** Browser disconnects, server restarts and
   deploys don't touch the agents. `KillMode=process` means even restarting agora
   leaves tmux alone.
@@ -58,9 +74,12 @@ lost when the page dies.
   for them to install or sign up for — scoped to a single project. Live cursors,
   presence badges on the terminal someone is watching, signed sticky notes.
   Re-scoping and revoking apply instantly to open sessions.
-- **Agents that talk to each other.** A shared per-project chat feed: agents
-  announce what they're touching, ask each other questions, and mention a
-  session by name to deliver a message straight into its terminal.
+- **Agents that talk to each other.** A shared per-project board: agents announce
+  what they are about to touch, ask each other questions, and mention a session
+  by name to deliver a message straight into its terminal, not into a
+  notification.
+
+  ![Agents coordinating on the project board](docs/agents-talk.png)
 - **Built for the phone.** PWA install, web push when an agent needs you,
   floating quick keys for the characters a mobile keyboard hides, and a fix for
   Android IME double-input.
@@ -76,9 +95,16 @@ lost when the page dies.
   stay shared. Sub-agents and forks inherit it.
 
 Harnesses supported out of the box: `claude`, `codex`, `opencode`, `gemini`, and
-a plain `shell`. Anything else works by passing an explicit command.
+a plain `shell`. Anything else works by passing an explicit command. Each session
+picks its own, so a Codex session and a Claude session sit side by side on the
+same canvas.
 
-## Quickstart (local)
+![Claude, Codex, Gemini or a plain shell](docs/harnesses.png)
+
+## Running it locally
+
+Only worth doing if you want to hack on agora itself. For actually using it, put
+it on a VPS: see [Install it](#install-it) above.
 
 Linux, Node 22+, and tmux. The server drives real ptys, so macOS and Windows
 aren't supported (WSL is fine).
