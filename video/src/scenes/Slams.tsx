@@ -8,7 +8,7 @@ import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
 import { c, font } from '../brand/tokens';
 import { BAR, BEAT } from '../lib/beats';
-import { sp } from '../lib/motion';
+import { reveal } from '../lib/motion';
 import { Stage } from '../lib/Stage';
 
 type Phrase = { bar: number; words: string[]; accent?: number; size: number };
@@ -30,22 +30,29 @@ const Word: React.FC<{
   frame: number;
   accent?: boolean;
 }> = ({ text, at, frame, accent }) => {
-  const s = sp(frame, at, 'punch');
-  // comes in oversized and slams down to size — the overshoot is the impact
-  const scale = interpolate(s, [0, 1], [1.35, 1]);
-  const blur = interpolate(s, [0, 0.4], [18, 0], { extrapolateRight: 'clamp' });
+  // The word slides up from behind a mask and stops. It used to arrive at 135%
+  // and spring down to size, which is a physical device applied to something
+  // with no mass; this reads as authored instead of bouncy.
+  const t = reveal(frame, at);
   return (
     <span
       style={{
         display: 'inline-block',
-        transform: `scale(${scale})`,
-        opacity: frame < at ? 0 : interpolate(s, [0, 0.25], [0, 1], { extrapolateRight: 'clamp' }),
-        filter: blur > 0.4 ? `blur(${blur}px)` : undefined,
-        color: accent ? c.primary : c.foreground,
+        overflow: 'hidden',
+        paddingBottom: '0.14em',
+        marginBottom: '-0.14em',
         marginRight: 28,
       }}
     >
-      {text}
+      <span
+        style={{
+          display: 'inline-block',
+          transform: `translateY(${(1 - t) * 110}%)`,
+          color: accent ? c.primary : c.foreground,
+        }}
+      >
+        {text}
+      </span>
     </span>
   );
 };
@@ -88,9 +95,6 @@ export const Slams: React.FC = () => {
               paddingLeft: 150,
               paddingRight: 150,
               opacity: out,
-              transform: `translateX(${interpolate(frame, [end - 7, end], [0, -40], {
-                extrapolateLeft: 'clamp',
-              })}px)`,
             }}
           >
             <div

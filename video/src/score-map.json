@@ -3,8 +3,8 @@
   "fps": 60,
   "framesPerBeat": 24,
   "framesPerBar": 96,
-  "totalBars": 50,
-  "durationInFrames": 4800,
+  "totalBars": 48,
+  "durationInFrames": 4608,
   "marks": {
     "coldOpen": 0,
     "build": 192,
@@ -13,13 +13,13 @@
     "drop": 864,
     "actTerminals": 1056,
     "actCanvas": 1440,
-    "actHarnesses": 2112,
-    "actAgentTalk": 2496,
-    "actMultiplayer": 2976,
-    "climax": 3840,
-    "silence2": 4296,
-    "lockup": 4320,
-    "end": 4800
+    "actHarnesses": 1920,
+    "actAgentTalk": 2304,
+    "actMultiplayer": 2784,
+    "climax": 3648,
+    "silence2": 4104,
+    "lockup": 4128,
+    "end": 4608
   },
   "markBars": {
     "coldOpen": 0,
@@ -29,12 +29,12 @@
     "drop": 9,
     "actTerminals": 11,
     "actCanvas": 15,
-    "actHarnesses": 22,
-    "actAgentTalk": 26,
-    "actMultiplayer": 31,
-    "climax": 40,
-    "silence2": 44.75,
-    "lockup": 45,
-    "end": 50
+    "actHarnesses": 20,
+    "actAgentTalk": 24,
+    "actMultiplayer": 29,
+    "climax": 38,
+    "silence2": 42.75,
+    "lockup": 43,
+    "end": 48
   }
 }

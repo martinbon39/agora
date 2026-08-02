@@ -8,7 +8,7 @@ import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
 import { c, font, AGENTS } from '../brand/tokens';
 import { BAR, BEAT } from '../lib/beats';
-import { rand, sp } from '../lib/motion';
+import { rand, reveal, sp } from '../lib/motion';
 import { Stage } from '../lib/Stage';
 import { CanvasBackground } from '../ui/CanvasBackground';
 import { Terminal } from '../ui/Terminal';
@@ -213,12 +213,20 @@ export const Climax: React.FC = () => {
                 fontWeight: 700,
                 letterSpacing: -7,
                 color: c.foreground,
-                transform: `scale(${interpolate(wordSp, [0, 1], [1.3, 1])})`,
                 opacity: wordOpacity,
                 textShadow: '0 30px 90px rgba(0,0,0,0.9)',
+                overflow: 'hidden',
+                paddingBottom: '0.14em',
               }}
             >
-              {word.text}
+              <span
+                style={{
+                  display: 'inline-block',
+                  transform: `translateY(${(1 - reveal(frame, word.at + 8)) * 110}%)`,
+                }}
+              >
+                {word.text}
+              </span>
             </div>
           </AbsoluteFill>
         )}
@@ -231,17 +239,10 @@ export const Climax: React.FC = () => {
   const cut = TAIL_CUTS[Math.max(0, idx)];
   const seed = Math.max(0, idx);
   const t = frame - cut.at;
-  const cell = GRID[Math.floor(rand(seed * 3 + 1) * GRID.length)];
+  const cell = GRID[(seed * 7) % GRID.length];
 
-  // alternate wide / detail so the fragments still read as one place
-  if (seed % 3 === 0) {
-    return (
-      <Stage>
-        <Wide frame={frame} push={0.08 + (seed % 5) * 0.02} />
-      </Stage>
-    );
-  }
-
+  // Details only. The first three bars were the wide grid; cutting back to it
+  // here made the climax read as the same shot scrolling past twice.
   const zoom = 2.1 + rand(seed) * 1.1;
   return (
     <Stage>

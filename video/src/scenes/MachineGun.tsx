@@ -247,6 +247,11 @@ const ShotSticky: React.FC<ShotProps> = ({ t, dur, seed }) => {
   );
 };
 
+// Seven distinct shots, and the index is strided by 3. Seven is prime, so the
+// stride walks all seven before it repeats any of them: no shot type ever lands
+// twice in a row, and none appears three times in the same handful of cuts.
+// The list used to hold duplicates and the section read as the same four images
+// looping.
 const SHOTS = [
   ShotTerminal,
   ShotStatus,
@@ -255,12 +260,8 @@ const SHOTS = [
   ShotChat,
   ShotCursor,
   ShotRoster,
-  ShotTerminal,
-  ShotSticky,
-  ShotNode,
-  ShotWord,
-  ShotTerminal,
 ];
+const SHOT_STRIDE = 3;
 
 export const MachineGun: React.FC = () => {
   const frame = useCurrentFrame();
@@ -288,7 +289,7 @@ export const MachineGun: React.FC = () => {
 
   const idx = CUTS.findIndex((cut) => frame >= cut.at && frame < cut.at + cut.dur);
   const cut = CUTS[Math.max(0, idx)];
-  const Shot = SHOTS[Math.max(0, idx) % SHOTS.length];
+  const Shot = SHOTS[(Math.max(0, idx) * SHOT_STRIDE) % SHOTS.length];
   const t = frame - cut.at;
 
   return (

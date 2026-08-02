@@ -12,17 +12,21 @@ import { SIXTEENTH } from '../lib/beats';
 import { Stage } from '../lib/Stage';
 
 const PROMPT = 'orbit@server ~ %';
-const TYPED = '40 agents';
+const TYPED = 'how do i win this hackathon';
 
 // keystrokes land on 16ths from frame 96 — the same frames as the ticks in the score
 const TYPE_FROM = 96;
+const TYPE_TO = 186; // one keystroke tick per 16th across the bar
 
 export const ColdOpen: React.FC = () => {
   const frame = useCurrentFrame();
 
   const typed = Math.max(
     0,
-    Math.min(TYPED.length, Math.floor((frame - TYPE_FROM) / SIXTEENTH) + 1),
+    Math.min(
+      TYPED.length,
+      Math.round(((frame - TYPE_FROM) / (TYPE_TO - TYPE_FROM)) * TYPED.length),
+    ),
   );
   const text = frame < TYPE_FROM ? '' : TYPED.slice(0, typed);
 

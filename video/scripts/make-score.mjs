@@ -25,7 +25,7 @@ const FPS = 60;
 const SPB = (60 / BPM) * SR; // samples per beat = 17640
 const BEATS_PER_BAR = 4;
 const SPBAR = SPB * BEATS_PER_BAR;
-const TOTAL_BARS = 50;
+const TOTAL_BARS = 48;
 const N = Math.round(SPBAR * TOTAL_BARS); // 3,245,760 samples ≈ 73.6s
 
 const barAt = (bar, beat = 0) => Math.round(bar * SPBAR + beat * SPB);
@@ -44,15 +44,15 @@ const MARKS = {
   drop: 9,
   actTerminals: 11,
   actCanvas: 15,
-  actHarnesses: 22,
+  actHarnesses: 20,
   // Two separate promises, so two separate acts: agents coordinating with each
   // other, and then humans joining. Stacked into one act they read as one
   // blurry idea.
-  actAgentTalk: 26,
-  actMultiplayer: 31,
-  climax: 40,
-  silence2: 44.75,
-  lockup: 45,
+  actAgentTalk: 24,
+  actMultiplayer: 29,
+  climax: 38,
+  silence2: 42.75,
+  lockup: 43,
   end: TOTAL_BARS,
 };
 
@@ -356,7 +356,9 @@ for (let bar = 0; bar < TOTAL_BARS; bar++) {
     if (bar === 0) droneSub(b0, SPBAR * 2.2, 29, 1.0); // F1
     if (bar === 1) {
       // keystrokes land on 16ths — the terminal is typing in time
-      for (let k = 0; k < 9; k++) keyTick(b0 + Math.round(k * SPB * 0.25), 1);
+      // one tick per 16th across the whole bar: the cold open types a full
+      // question now, not a two-word fragment
+      for (let k = 0; k < 16; k++) keyTick(b0 + Math.round(k * SPB * 0.25), 1);
       reverseSwell(b0 + Math.round(SPB * 2), SPB * 2, 0.55);
     }
     continue;

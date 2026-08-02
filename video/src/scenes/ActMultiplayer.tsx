@@ -13,7 +13,7 @@ import React from 'react';
 import { interpolate, useCurrentFrame } from 'remotion';
 import { c, term, AGENTS } from '../brand/tokens';
 import { BAR, BEAT } from '../lib/beats';
-import { rise, sp } from '../lib/motion';
+import { expoOut, rise, sp } from '../lib/motion';
 import { Caption, SectionLabel } from '../lib/Caption';
 import { Stage } from '../lib/Stage';
 import { CanvasBackground } from '../ui/CanvasBackground';
@@ -25,7 +25,12 @@ import { Cursor } from '../ui/Cursor';
 import { BOARD, HERMES_SESSION, HYPNOS_SESSION, PEERS } from '../content';
 import { ATHENA_AFTER } from './ActAgentTalk';
 
-const HUMANS = BAR; // 96, the first person arrives
+// The act opens on the thing that lets any of this happen: an invite button.
+// A cursor presses it, and the room fills. Martin's note was that the cut into
+// this act was the weakest in the film and that the answer was fewer words, not
+// more: the button IS the explanation.
+const INVITE_AT = BEAT * 2; // 48, the press
+const HUMANS = BAR; // 96, and they all arrive together
 const CANVAS_ACT = BAR * 3; // 288, somebody puts something on the canvas
 const TAKEOVER = BAR * 5; // 480, and then takes a keyboard that is not theirs
 const SECOND = BAR * 7; // 672, and a second person does the same, elsewhere
@@ -81,19 +86,19 @@ const ARRIVALS: {
   },
   {
     peer: PEERS[1], // lea: athena, then into hypnos's session
-    at: HUMANS + BEAT,
+    at: HUMANS,
     from: { x: 2040, y: 900 },
     legs: [
-      { at: HUMANS + BEAT, x: 1462, y: 428 },
+      { at: HUMANS, x: 1462, y: 428 },
       { at: SECOND, x: 356, y: 728 },
     ],
   },
   {
     peer: PEERS[2], // sam: the board, then drops a note onto the canvas
-    at: HUMANS + BEAT * 2,
+    at: HUMANS,
     from: { x: 900, y: 1160 },
     legs: [
-      { at: HUMANS + BEAT * 2, x: 962, y: 812 },
+      { at: HUMANS, x: 962, y: 812 },
       { at: CANVAS_ACT, x: 1452, y: 648 },
     ],
   },
@@ -103,7 +108,7 @@ export const ActMultiplayer: React.FC = () => {
   const frame = useCurrentFrame();
 
   const watchHermes = rise(frame, HUMANS + 12, 20);
-  const watchAthena = rise(frame, HUMANS + BEAT + 12, 20);
+  const watchAthena = rise(frame, HUMANS + 12, 20);
 
   const takenOver = frame >= TAKEOVER + 16;
   const secondHuman = frame >= SECOND + 16;
@@ -114,6 +119,17 @@ export const ActMultiplayer: React.FC = () => {
   const noteX = interpolate(noteIn, [0, 1], [1560, 1330]);
   const noteY = interpolate(noteIn, [0, 1], [900, 632]);
 
+  const pressT = interpolate(frame, [INVITE_AT, INVITE_AT + 6], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  const pressed = frame >= INVITE_AT;
+  const ringT = interpolate(frame, [INVITE_AT, INVITE_AT + 26], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+    easing: expoOut,
+  });
+
   const viewer = (i: number) => ({ name: PEERS[i].name, color: PEERS[i].color });
 
   return (
@@ -121,6 +137,75 @@ export const ActMultiplayer: React.FC = () => {
       <CanvasBackground opacity={0.75} offsetX={frame * 0.3} offsetY={-frame * 0.1} />
 
       <SectionLabel title="Invite anyone into the room" y={78} />
+
+      {/* the invite button, pressed on the beat before the room fills */}
+      {frame < HUMANS + BEAT && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 810,
+            top: 470,
+            opacity: interpolate(frame, [8, 20, HUMANS, HUMANS + BEAT], [0, 1, 1, 0], {
+              extrapolateLeft: 'clamp',
+              extrapolateRight: 'clamp',
+            }),
+            zIndex: 40,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '14px 24px',
+              borderRadius: 12,
+              background: c.primary,
+              color: '#ffffff',
+              fontSize: 24,
+              fontWeight: 600,
+              letterSpacing: -0.3,
+              // it depresses on the press, the way a button does
+              transform: `scale(${pressT > 0 && pressT < 1 ? 0.96 : 1})`,
+              boxShadow: pressed
+                ? `0 0 0 6px ${c.primary}22, 0 10px 30px rgb(0 0 0 / 45%)`
+                : '0 10px 30px rgb(0 0 0 / 45%)',
+            }}
+          >
+            Invite people
+          </div>
+          {/* the ring that leaves the button when it is pressed */}
+          {pressed && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: -4,
+                borderRadius: 16,
+                border: `2px solid ${c.primary}`,
+                transform: `scale(${1 + ringT * 0.9})`,
+                opacity: 1 - ringT,
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* the cursor that presses it, before the others arrive */}
+      {frame < HUMANS && (
+        <Cursor
+          x={interpolate(frame, [0, INVITE_AT], [1180, 1010], {
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp',
+            easing: expoOut,
+          })}
+          y={interpolate(frame, [0, INVITE_AT], [700, 520], {
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp',
+            easing: expoOut,
+          })}
+          name={PEERS[0].name}
+          color={PEERS[0].color}
+        />
+      )}
 
       {/* hermes */}
       <div style={{ position: 'absolute', left: 110, top: 244 }}>

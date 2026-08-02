@@ -13,6 +13,37 @@ import { FPS } from './beats';
 /** The marketing page's one curve (web/src/marketing/Landing.tsx:18). */
 export const appEase = Easing.bezier(EASE[0], EASE[1], EASE[2], EASE[3]);
 
+/**
+ * Expo-out. The curve display type arrives on.
+ *
+ * Everything used to arrive on a spring, oversized, bouncing down to size.
+ * A spring models a physical system you can interrupt mid-motion — it is the
+ * right tool for a dragged sheet and the wrong one for a word in a cut film,
+ * which no one can touch and which has no mass. Overshoot on type reads as a
+ * stock effect rather than an authored decision.
+ *
+ * So: no scale, no bounce. The word slides up from behind a mask on this
+ * curve, and the settle finishes ON the beat rather than starting there.
+ */
+export const expoOut = Easing.bezier(0.19, 1, 0.22, 1);
+
+/** Frames a masked reveal takes, and the gap between successive words. */
+export const REVEAL = 16;
+export const STAGGER_WORD = 4;
+export const STAGGER_CHAR = 2;
+
+/**
+ * 0 -> 1 for a masked reveal that LANDS on `at`. The motion runs ahead of the
+ * beat and its deceleration tail finishes on it, which is what makes type feel
+ * cut to music rather than triggered by it.
+ */
+export const reveal = (frame: number, at: number, duration = REVEAL) =>
+  interpolate(frame, [at - duration, at], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+    easing: expoOut,
+  });
+
 export const SPRINGS = {
   /** Impact. Overshoots hard, settles fast. For anything landing on a beat. */
   punch: { damping: 12, stiffness: 300, mass: 0.8 },
