@@ -505,7 +505,7 @@ for (let bar = 0; bar < TOTAL_BARS; bar++) {
     pad(b0, SPBAR, ch.tones, 0.34);
     if (bar === MARKS.lockup - 2) riser(b0, SILENCE2 - b0, 0.8);
     if (bar === MARKS.lockup - 1) {
-      reverseSwell(SILENCE2 - Math.round(SPB * 0.15), SPB * 1.15, 0.32);
+      reverseSwell(SILENCE2 - Math.round(SPB * 0.15), SPB * 1.15, 0.24);
     }
     continue;
   }

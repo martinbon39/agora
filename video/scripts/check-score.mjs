@@ -88,13 +88,24 @@ for (const [name, at] of [['drop', map.marks.drop], ['lockup', map.marks.lockup]
 }
 
 // 4. the arrangement actually builds: cold open < build < machine gun < climax
+// A renamed mark used to slip through here as undefined, which made rms()
+// return NaN and every comparison against it quietly false. Fail loudly instead.
+const mark = (name) => {
+  const v = map.marks[name];
+  if (typeof v !== 'number') {
+    console.log(`FAIL  score-map has no mark called "${name}"`);
+    process.exit(1);
+  }
+  return v;
+};
+
 const sections = [
-  ['coldOpen', map.marks.coldOpen, map.marks.build],
-  ['build', map.marks.build, map.marks.machineGun],
-  ['machineGun', map.marks.machineGun, map.marks.silence1],
-  ['acts', map.marks.actTerminals, map.marks.climax],
-  ['climax', map.marks.climax, map.marks.silence2],
-  ['lockup', map.marks.lockup, map.marks.end],
+  ['coldOpen', mark('coldOpen'), mark('build')],
+  ['build', mark('build'), mark('machineGun')],
+  ['machineGun', mark('machineGun'), mark('silence1')],
+  ['acts', mark('actCanvas'), mark('climax')],
+  ['climax', mark('climax'), mark('silence2')],
+  ['lockup', mark('lockup'), mark('end')],
 ];
 console.log('\nsection levels:');
 const levels = {};
@@ -133,8 +144,8 @@ check(
 //    trying to isolate "the kick" by frequency failed, because the kick sweeps
 //    down from 210Hz and only enters a sub band once it has already decayed.
 {
-  const from = map.marks.actTerminals;
-  const to = map.marks.climax; // 21 bars of steady groove
+  const from = mark('actCanvas');
+  const to = mark('climax');
   const a = f2s(from);
   const b = f2s(to);
 
