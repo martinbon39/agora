@@ -18,8 +18,8 @@ import { StickyNode } from '../ui/StickyNode';
 import { Cursor } from '../ui/Cursor';
 import { BOARD, PEERS, SESSIONS } from '../content';
 
-const FRAGMENTS = BAR * 4; // 384 — where the grid breaks up
-const HOLE = 552;
+const FRAGMENTS = BAR * 3; // 288 — where the grid breaks up
+const HOLE = 456; // TAIL is exactly 168 frames, so 288 + 168 lands here
 
 const NAMES = Object.keys(AGENTS) as (keyof typeof AGENTS)[];
 const STATES = ['working', 'idle', 'needs_approval', 'working', 'idle', 'working'] as const;
@@ -44,9 +44,8 @@ const WATCHERS: Record<number, number> = { 0: 0, 3: 1, 9: 2 };
 
 const WORDS = [
   { at: 0, text: 'PARALLEL' },
-  { at: BAR, text: 'PERSISTENT' },
-  { at: BAR * 2, text: 'SHARED' },
-  { at: BAR * 3, text: 'YOURS' },
+  { at: BAR, text: 'SHARED' },
+  { at: BAR * 2, text: 'YOURS' },
 ];
 
 const Cellular: React.FC<{ cell: Cell; frame: number }> = ({ cell, frame }) => {

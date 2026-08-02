@@ -16,12 +16,15 @@ import { Terminal } from '../ui/Terminal';
 import { TerminalNode } from '../ui/TerminalNode';
 import { StickyNode } from '../ui/StickyNode';
 import { ChatNode } from '../ui/ChatNode';
+import { Cursor } from '../ui/Cursor';
 import {
+  PEERS,
   ATHENA_SESSION,
   BOARD,
   HERMES_SESSION,
   HYPNOS_SESSION,
   IRIS_SESSION,
+  NYX_SESSION,
 } from '../content';
 
 type Placed = {
@@ -141,12 +144,68 @@ const NODES: Placed[] = [
         width={230}
         height={200}
         color="amber"
-        text="demo at 18:00 — freeze main at 17:30"
+        text="demo at 18:00, freeze main at 17:30"
         author="lea"
       />
     ),
   },
+
+  {
+    key: 'nyx',
+    x: -620,
+    y: 520,
+    at: BEAT * 13,
+    render: () => (
+      <TerminalNode
+        name="nyx"
+        harness={AGENTS.nyx.harness}
+        state="working"
+        stateLabel="working"
+        width={500}
+        height={280}
+      >
+        <Terminal lines={NYX_SESSION} showCursor fontSize={12.5} />
+      </TerminalNode>
+    ),
+  },
+  {
+    key: 'note3',
+    x: 1700,
+    y: 180,
+    at: BEAT * 15,
+    render: () => (
+      <StickyNode
+        width={240}
+        height={200}
+        color="lime"
+        text="judging at 19:00. reel is the demo."
+        author="sam"
+      />
+    ),
+  },
+  {
+    key: 'note4',
+    x: 1660,
+    y: 620,
+    at: BEAT * 17,
+    render: () => (
+      <StickyNode
+        width={240}
+        height={190}
+        color="sky"
+        text="everyone signs in with a passkey"
+        author="martin"
+      />
+    ),
+  },
 ];
+
+// Halfway through, somebody picks a node up and moves it. The canvas is not a
+// dashboard: the layout is yours, and it stays where you put it.
+const DRAG_FROM = BAR * 5;
+const DRAG_TO = DRAG_FROM + BEAT * 3;
+const DRAG_KEY = 'iris';
+const DRAG_DELTA = { x: -250, y: -300 };
 
 // where the camera starts (inside hermes) and where it ends up
 const START = { x: 300, y: 180, s: 2.35 };
@@ -154,6 +213,9 @@ const END = { x: 430, y: 250, s: 0.66 };
 
 export const ActCanvas: React.FC = () => {
   const frame = useCurrentFrame();
+
+  const drag = sp(frame, DRAG_FROM, 'glide');
+  const dragged = NODES.find((n) => n.key === DRAG_KEY)!;
 
   const s = springTo(frame, 0, START.s, END.s, 'glide');
   const cx = springTo(frame, 0, START.x, END.x, 'glide') + frame * 0.12;
@@ -183,8 +245,11 @@ export const ActCanvas: React.FC = () => {
                   position: 'absolute',
                   left: n.x,
                   top: n.y,
-                  transform: `scale(${interpolate(pop, [0, 1], [0.82, 1])})`,
+                  transform: `translate(${n.key === DRAG_KEY ? DRAG_DELTA.x * drag : 0}px, ${
+                    n.key === DRAG_KEY ? DRAG_DELTA.y * drag : 0
+                  }px) scale(${interpolate(pop, [0, 1], [0.82, 1])})`,
                   opacity: interpolate(pop, [0, 0.3], [0, 1], { extrapolateRight: 'clamp' }),
+                  zIndex: n.key === DRAG_KEY && drag > 0 && drag < 1 ? 10 : undefined,
                 }}
               >
                 {n.render()}
@@ -203,11 +268,34 @@ export const ActCanvas: React.FC = () => {
         }}
       />
 
-      <SectionLabel index="02 — the canvas" title="An infinite canvas per project" from={BEAT} />
+      <SectionLabel kicker="one project, one workspace" title="An infinite canvas you can arrange" from={BEAT} />
 
-      <Caption from={BAR * 3} y={906}>
-        Terminals, notes, checklists and live previews on one spatial workspace —{' '}
-        <span style={{ color: c.foreground }}>and it persists</span>.
+      {frame >= DRAG_FROM - BEAT && (
+        <Cursor
+          x={
+            960 +
+            (dragged.x + DRAG_DELTA.x * drag + 120 - cx) * s +
+            (frame < DRAG_FROM ? 120 : 0)
+          }
+          y={540 + (dragged.y + DRAG_DELTA.y * drag + 18 - cy) * s}
+          name={PEERS[0].name}
+          color={PEERS[0].color}
+          opacity={interpolate(frame, [DRAG_FROM - BEAT, DRAG_FROM - 6, DRAG_TO + BEAT * 2, DRAG_TO + BEAT * 3], [0, 1, 1, 0], {
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp',
+          })}
+        />
+      )}
+
+      <Caption from={BAR * 3} until={BAR * 5} y={906}>
+        Terminals, notes, boards and live previews, laid out side by side instead of
+        stacked in tabs. <span style={{ color: c.foreground }}>Move things where you
+        want them. It stays that way.</span>
+      </Caption>
+      <Caption from={DRAG_FROM + BEAT * 2} y={906}>
+        Drag things where they make sense. The layout is saved with the project, so
+        it is still there tomorrow{' '}
+        <span style={{ color: c.foreground }}>and it is there for everyone on it</span>.
       </Caption>
     </Stage>
   );

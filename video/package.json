@@ -9,7 +9,7 @@
     "fonts": "node scripts/embed-fonts.mjs",
     "check": "node scripts/check-score.mjs",
     "dev": "remotion studio",
-    "render": "remotion render AgoraFilm out/agora.mp4",
+    "render": "remotion render AgoraFilm out/agora-announce.mp4",
     "still": "remotion still AgoraFilm out/still.png"
   },
   "dependencies": {

@@ -10,6 +10,7 @@ import { MachineGun } from './scenes/MachineGun';
 import { LogoDrop } from './scenes/LogoDrop';
 import { ActTerminals } from './scenes/ActTerminals';
 import { ActCanvas } from './scenes/ActCanvas';
+import { ActHarnesses } from './scenes/ActHarnesses';
 import { ActMultiplayer } from './scenes/ActMultiplayer';
 import { Climax } from './scenes/Climax';
 import { Lockup } from './scenes/Lockup';
@@ -60,6 +61,9 @@ export const Film: React.FC = () => (
     </Sequence>
     <Sequence from={S.canvas.from} durationInFrames={S.canvas.dur}>
       <ActCanvas />
+    </Sequence>
+    <Sequence from={S.harnesses.from} durationInFrames={S.harnesses.dur}>
+      <ActHarnesses />
     </Sequence>
     <Sequence from={S.multiplayer.from} durationInFrames={S.multiplayer.dur}>
       <ActMultiplayer />

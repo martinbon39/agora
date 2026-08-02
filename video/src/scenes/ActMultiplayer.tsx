@@ -22,9 +22,10 @@ import { Cursor } from '../ui/Cursor';
 import { ATHENA_SESSION, BOARD, HERMES_SESSION, HYPNOS_SESSION, PEERS } from '../content';
 
 const BOARD_IN = BAR * 2; // 192
-const DELIVER = BAR * 5; // 480 — the mention lands
+const DELIVER = BAR * 5; // 480, the mention lands
 const HUMANS = BAR * 7; // 672
 const WIDEN = BAR * 9; // 864
+const TAKEOVER = BAR * 11; // 1056, a human walks into someone else's session
 
 const countChars = (lines: TermLine[]) =>
   lines.reduce((n, l) => n + l.spans.reduce((m, s) => m + s.text.length, 0), 0);
@@ -54,26 +55,69 @@ const ATHENA_AFTER: TermLine[] = [
       { text: ' is yours. Pushed at 18:34, tests green.' },
     ],
   },
-  { spans: [{ text: '✓', color: term.green }, { text: ' approved — writing refund path' }] },
+  { spans: [{ text: '✓', color: term.green }, { text: ' approved. writing refund path' }] },
 ];
 
-// Each human flies in from off-frame and settles ON the thing they are
-// watching — martin on hermes, lea on athena, sam on the board. A presence
-// badge in a node header only means something if the cursor agrees with it, so
-// when hypnos appears at WIDEN carrying sam's badge, sam moves there too.
+// And what it shows when a human walks in and takes the keyboard. This is the
+// thing agora does that a chat window cannot: athena is somebody else's session
+// on somebody else's canvas, and martin can still type into it.
+const ATHENA_TAKEOVER: TermLine[] = [
+  ...ATHENA_AFTER,
+  { spans: [{ text: '' }] },
+  {
+    spans: [
+      { text: '← ', color: term.brightBlack },
+      { text: 'martin', color: term.cyan, bold: true },
+      { text: ' joined this session', color: term.brightBlack },
+    ],
+  },
+  {
+    spans: [
+      { text: '› ', color: term.brightBlack },
+      { text: 'hold on, add a test for the double refund case first' },
+    ],
+  },
+];
+
+// Each human flies in from off-frame and then moves between the things they are
+// looking at. A presence badge in a node header only means something if the
+// cursor agrees with it, so every badge in this scene has a cursor on it.
 //
-// hypnos's box is (110..630, 690..980) in group space; the group is scaled 0.84
-// about (960, 496.8) and lifted -40, which puts its centre near (464, 751) on
-// screen. That is where sam's second leg lands.
-const PEER_ARRIVALS = [
-  { peer: PEERS[0], at: HUMANS, from: { x: -80, y: 980 }, to: { x: 470, y: 520 } },
-  { peer: PEERS[1], at: HUMANS + BEAT, from: { x: 2040, y: 900 }, to: { x: 1430, y: 505 } },
+// Legs are absolute screen positions, applied in order. The nodes live inside a
+// group that scales 0.84 about (960, 496.8) and lifts -40 at WIDEN, so these
+// were read off the post-transform positions: hermes centres near (557, 436),
+// athena near (1363, 436), hypnos near (464, 751).
+type Leg = { at: number; x: number; y: number };
+const PEER_ARRIVALS: {
+  peer: (typeof PEERS)[number];
+  at: number;
+  from: { x: number; y: number };
+  legs: Leg[];
+}[] = [
+  {
+    peer: PEERS[0],
+    at: HUMANS,
+    from: { x: -80, y: 980 },
+    legs: [
+      { at: HUMANS, x: 470, y: 520 },
+      // and then straight into athena's session, which is not his
+      { at: TAKEOVER, x: 1315, y: 402 },
+    ],
+  },
+  {
+    peer: PEERS[1],
+    at: HUMANS + BEAT,
+    from: { x: 2040, y: 900 },
+    legs: [{ at: HUMANS + BEAT, x: 1430, y: 505 }],
+  },
   {
     peer: PEERS[2],
     at: HUMANS + BEAT * 2,
     from: { x: 900, y: 1160 },
-    to: { x: 1180, y: 880 },
-    then: { at: WIDEN, x: 470, y: 745 },
+    legs: [
+      { at: HUMANS + BEAT * 2, x: 1180, y: 880 },
+      { at: WIDEN, x: 470, y: 745 },
+    ],
   },
 ];
 
@@ -111,6 +155,15 @@ export const ActMultiplayer: React.FC = () => {
     ? Math.max(0, 1 - (frame - (DELIVER + 18)) / 16)
     : 0;
 
+  // the takeover: martin's cursor reaches athena's node, then he types in it
+  const takenOver = frame >= TAKEOVER + 14;
+  const takeoverTyped = interpolate(
+    frame,
+    [TAKEOVER + 14, TAKEOVER + 96],
+    [countChars(ATHENA_AFTER), countChars(ATHENA_TAKEOVER)],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
+  );
+
   // presence: who is watching what, and from when
   const watchHermes = rise(frame, HUMANS + BEAT, 20);
   const watchAthena = rise(frame, HUMANS + BEAT * 2, 20);
@@ -120,7 +173,7 @@ export const ActMultiplayer: React.FC = () => {
       <CanvasBackground opacity={0.75} offsetX={frame * 0.3} offsetY={-frame * 0.12} />
 
       <SectionLabel
-        index="03 — multiplayer"
+        kicker="built for teams"
         title="Agents that talk to each other"
         x={120}
         y={78}
@@ -151,8 +204,12 @@ export const ActMultiplayer: React.FC = () => {
             width={740}
             height={392}
             glowColor={PEERS[0].color}
-            glowStrength={watchHermes}
-            viewers={watchHermes > 0.4 ? [{ name: PEERS[0].name, color: PEERS[0].color }] : []}
+            glowStrength={takenOver ? 0 : watchHermes}
+            viewers={
+              watchHermes > 0.4 && !takenOver
+                ? [{ name: PEERS[0].name, color: PEERS[0].color }]
+                : []
+            }
           >
             <Terminal lines={HERMES_SESSION} visibleChars={hermesTyped} showCursor fontSize={14.5} />
           </TerminalNode>
@@ -178,13 +235,24 @@ export const ActMultiplayer: React.FC = () => {
             path="~/projects/checkout"
             width={740}
             height={392}
-            glowColor={delivered && landFlash > 0 ? term.magenta : PEERS[1].color}
-            glowStrength={Math.max(landFlash, watchAthena)}
-            viewers={watchAthena > 0.4 ? [{ name: PEERS[1].name, color: PEERS[1].color }] : []}
+            glowColor={
+              takenOver
+                ? PEERS[0].color
+                : delivered && landFlash > 0
+                  ? term.magenta
+                  : PEERS[1].color
+            }
+            glowStrength={Math.max(landFlash, watchAthena, takenOver ? 1 : 0)}
+            viewers={[
+              ...(watchAthena > 0.4 ? [{ name: PEERS[1].name, color: PEERS[1].color }] : []),
+              ...(takenOver ? [{ name: PEERS[0].name, color: PEERS[0].color }] : []),
+            ]}
           >
             <Terminal
-              lines={delivered ? ATHENA_AFTER : ATHENA_SESSION}
-              visibleChars={delivered ? undefined : athenaTyped}
+              lines={takenOver ? ATHENA_TAKEOVER : delivered ? ATHENA_AFTER : ATHENA_SESSION}
+              visibleChars={
+                takenOver ? takeoverTyped : delivered ? undefined : athenaTyped
+              }
               showCursor
               fontSize={14.5}
             />
@@ -264,20 +332,22 @@ export const ActMultiplayer: React.FC = () => {
       </AbsoluteFill>
 
       {/* live cursors */}
-      {PEER_ARRIVALS.map(({ peer, at, from, to, then }) => {
+      {PEER_ARRIVALS.map(({ peer, at, from, legs }) => {
         if (frame < at) return null;
         const t = frame - at;
-        // eased fly-in, then a small idle drift so nobody looks parked
-        const arrive = sp(frame, at, 'glide');
-        const drift = Math.max(0, t - 40);
-        let x = from.x + (to.x - from.x) * arrive;
-        let y = from.y + (to.y - from.y) * arrive;
-        if (then && frame >= then.at) {
-          // second leg: follow the session that just appeared
-          const move = sp(frame, then.at, 'glide');
-          x += (then.x - to.x) * move;
-          y += (then.y - to.y) * move;
+        // walk the legs in order: each one eases from where the previous left off
+        let x = from.x;
+        let y = from.y;
+        let prev = from;
+        for (const leg of legs) {
+          if (frame < leg.at) break;
+          const move = sp(frame, leg.at, 'glide');
+          x += (leg.x - prev.x) * move;
+          y += (leg.y - prev.y) * move;
+          prev = leg;
         }
+        // a small idle drift so nobody ever looks parked
+        const drift = Math.max(0, t - 40);
         return (
           <Cursor
             key={peer.name}
@@ -294,15 +364,20 @@ export const ActMultiplayer: React.FC = () => {
         Several agents on one repo, each in its own session.
       </Caption>
       <Caption from={BOARD_IN + BEAT} until={DELIVER} x={120} y={886} size={26} width={500}>
-        They announce what they are about to touch —{' '}
-        <span style={{ color: c.foreground }}>coordination you can read</span>.
+        They announce what they are about to touch, so nobody overwrites anybody.{' '}
+        <span style={{ color: c.foreground }}>Coordination you can read.</span>
       </Caption>
       <Caption from={DELIVER + 20} until={HUMANS} x={120} y={886} size={26} width={500}>
         <span style={{ color: term.magenta }}>@mention</span> a session and the message lands{' '}
         <span style={{ color: c.foreground }}>inside its terminal</span>.
       </Caption>
-      <Caption from={HUMANS + BEAT * 3} x={120} y={886} size={26} width={500}>
+      <Caption from={HUMANS + BEAT * 3} until={TAKEOVER} x={120} y={886} size={26} width={500}>
         Invite a human too. Live cursors, presence on the terminal someone is watching.
+      </Caption>
+      <Caption from={TAKEOVER + 18} x={120} y={886} size={26} width={500}>
+        And you can walk into someone else&apos;s terminal and{' '}
+        <span style={{ color: c.foreground }}>take the keyboard</span>. It is the same
+        pty, not a screenshare.
       </Caption>
     </Stage>
   );

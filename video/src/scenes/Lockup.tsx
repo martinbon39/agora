@@ -12,7 +12,7 @@ import { rise, sp } from '../lib/motion';
 import { Bloom, Stage } from '../lib/Stage';
 import { Logo } from '../brand/Logo';
 
-const OUT = BAR * 5.2; // start the fade with the chord still ringing
+const OUT = BAR * 3.6; // start the fade with the chord still ringing
 
 export const Lockup: React.FC = () => {
   const frame = useCurrentFrame();
@@ -24,14 +24,14 @@ export const Lockup: React.FC = () => {
   const strip = rise(frame, BAR + BEAT, 26);
   const url = rise(frame, BAR * 2, 26);
 
-  const fade = interpolate(frame, [OUT, 576], [1, 0], {
+  const fade = interpolate(frame, [OUT, 480], [1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
   return (
     <Stage background="#0c0c0c">
-      <Bloom size={1600} opacity={interpolate(frame, [0, 24], [0.4, 0.16])} blur={190} />
+      <Bloom size={1200} color="#ffffff" opacity={interpolate(frame, [0, 24], [0.12, 0.05])} blur={190} />
 
       <AbsoluteFill
         style={{
@@ -73,9 +73,10 @@ export const Lockup: React.FC = () => {
         <div
           style={{
             marginTop: 34,
-            fontFamily: font.mono,
-            fontSize: 21,
-            letterSpacing: 3,
+            fontFamily: font.sans,
+            fontSize: 26,
+            fontWeight: 500,
+            letterSpacing: -0.2,
             color: c.muted,
             opacity: strip,
             transform: `translateY(${(1 - strip) * 12}px)`,
@@ -96,19 +97,18 @@ export const Lockup: React.FC = () => {
         >
           <div
             style={{
-              fontFamily: font.mono,
-              fontSize: 19,
-              letterSpacing: 3,
-              textTransform: 'uppercase',
+              fontFamily: font.sans,
+              fontSize: 21,
+              fontWeight: 500,
               color: c.primary,
               border: `1px solid ${c.primary}55`,
               borderRadius: 999,
               padding: '8px 18px',
             }}
           >
-            Built for hackathons
+            Made for hackathons
           </div>
-          <div style={{ fontFamily: font.mono, fontSize: 22, color: c.foreground }}>
+          <div style={{ fontFamily: font.sans, fontSize: 24, fontWeight: 500, color: c.foreground }}>
             github.com/martinbon39/agora
           </div>
         </div>

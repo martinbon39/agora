@@ -7,41 +7,44 @@ import { c, font } from '../brand/tokens';
 import { rise, sp } from './motion';
 
 export const SectionLabel: React.FC<{
-  index: string;
+  kicker?: string;
   title: string;
   from?: number;
   x?: number;
   y?: number;
-}> = ({ index, title, from = 0, x = 120, y = 110 }) => {
+  size?: number;
+}> = ({ kicker, title, from = 0, x = 120, y = 110, size = 62 }) => {
   const frame = useCurrentFrame();
   const a = rise(frame, from, 20);
   const b = rise(frame, from + 6, 24);
   return (
     <div style={{ position: 'absolute', left: x, top: y }}>
-      <div
-        style={{
-          fontFamily: font.mono,
-          fontSize: 19,
-          letterSpacing: 5,
-          textTransform: 'uppercase',
-          color: c.primary,
-          opacity: a,
-          transform: `translateY(${(1 - a) * 10}px)`,
-        }}
-      >
-        {index}
-      </div>
+      {kicker ? (
+        <div
+          style={{
+            fontFamily: font.sans,
+            fontSize: 25,
+            fontWeight: 500,
+            letterSpacing: -0.2,
+            color: c.primary,
+            opacity: a,
+            transform: `translateY(${(1 - a) * 10}px)`,
+          }}
+        >
+          {kicker}
+        </div>
+      ) : null}
       <div
         style={{
           marginTop: 14,
-          fontSize: 62,
+          fontSize: size,
           fontWeight: 700,
           letterSpacing: -1.6,
           lineHeight: 1.02,
           color: c.foreground,
           opacity: b,
           transform: `translateY(${(1 - b) * 14}px)`,
-          maxWidth: 1000,
+          maxWidth: 1180,
         }}
       >
         {title}

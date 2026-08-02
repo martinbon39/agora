@@ -23,7 +23,7 @@ export const HERMES_SESSION: TermLine[] = [
   { spans: [dim('running vitest…')] },
   { spans: [ok('✓'), s(' 41 passed')] },
   { spans: [] },
-  { spans: [mention('@athena'), s(' picking up the refund path — leave '), path('billing.ts')] },
+  { spans: [mention('@athena'), s(' picking up the refund path. leave '), path('billing.ts')] },
 ];
 
 export const ATHENA_SESSION: TermLine[] = [
@@ -31,7 +31,7 @@ export const ATHENA_SESSION: TermLine[] = [
   { spans: [] },
   { spans: [s('› ', term.brightBlack), s('refund path, mirror the webhook tests')] },
   { spans: [dim('reading '), path('src/payments/refund.ts')] },
-  { spans: [warn('?'), s(' write to '), path('billing.ts'), s(' — approve?')] },
+  { spans: [warn('?'), s(' write to '), path('billing.ts'), s('? approve')] },
   { spans: [dim('waiting for approval…')] },
 ];
 
@@ -48,7 +48,7 @@ export const IRIS_SESSION: TermLine[] = [
   { spans: [dim('agora session · iris · ~/projects/checkout')] },
   { spans: [s('› ', term.brightBlack), s('keep main green')] },
   { spans: [dim('vitest --watch')] },
-  { spans: [ok('✓'), s(' 41 passed'), dim('  ·  1.8s')] },
+  { spans: [ok('✓'), s(' 41 passed'), dim('   1.8s')] },
 ];
 
 export const NYX_SESSION: TermLine[] = [
@@ -72,7 +72,7 @@ export const BOARD = [
     author: 'hermes',
     harness: 'claude' as const,
     time: '18:32',
-    text: 'taking src/payments/* — webhooks and their tests. Not touching billing.ts.',
+    text: 'taking src/payments/* : webhooks and their tests. Not touching billing.ts.',
   },
   {
     author: 'athena',

@@ -20,13 +20,15 @@ import { CanvasBackground } from '../ui/CanvasBackground';
 import { HarnessAvatar } from '../ui/HarnessAvatar';
 import { BOARD, PEERS, SESSIONS } from '../content';
 
-// Shot lengths, in frames. Six per beat at the end — the eye cannot keep up,
-// which is the point.
+// Shot lengths in frames, ramping a beat -> half -> quarter.
+//
+// The ramp itself is what works, so it is kept exactly: one shot per beat to
+// open, then twice per beat, then the 6-frame burst that runs into the hole.
+// What changed is the runtime, 6 bars down to 4 — the same acceleration, with
+// the two bars handed to the canvas and multiplayer instead.
 const PATTERN: number[] = [
   ...Array(6).fill(24),
   ...Array(8).fill(12),
-  ...Array(2).fill(24), // one breath, so the burst has something to accelerate from
-  ...Array(12).fill(12),
   ...Array(20).fill(6),
 ];
 
@@ -104,10 +106,10 @@ const ShotStatus: React.FC<ShotProps> = ({ t, dur, seed }) => {
       <div
         style={{
           marginTop: 46,
-          fontFamily: font.mono,
-          fontSize: 26,
-          letterSpacing: 5,
-          textTransform: 'uppercase',
+          fontFamily: font.sans,
+          fontSize: 34,
+          fontWeight: 500,
+          letterSpacing: -0.4,
           color: st.color,
         }}
       >
@@ -184,16 +186,16 @@ const ShotWord: React.FC<ShotProps> = ({ t, dur, seed }) => {
       style={{
         alignItems: 'center',
         justifyContent: 'center',
-        background: seed % 3 === 0 ? c.primary : c.background,
+        background: seed % 3 === 0 ? c.foreground : c.background,
       }}
     >
       <div
         style={{
-          fontFamily: font.mono,
-          fontSize: 128,
+          fontFamily: font.sans,
+          fontSize: 142,
           fontWeight: 700,
-          letterSpacing: -2,
-          color: seed % 3 === 0 ? '#0b0b0b' : c.foreground,
+          letterSpacing: -5,
+          color: seed % 3 === 0 ? c.background : c.foreground,
           transform: `scale(${scale})`,
         }}
       >
@@ -213,7 +215,7 @@ const ShotRoster: React.FC<ShotProps> = ({ t, dur }) => {
         {names.map((n, i) => (
           <div key={n} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
             <HarnessAvatar harness={AGENTS[n].harness} state={states[i]} size="md" />
-            <span style={{ fontFamily: font.mono, fontSize: 11, color: c.muted }}>{n}</span>
+            <span style={{ fontFamily: font.sans, fontSize: 13, fontWeight: 500, color: c.muted }}>{n}</span>
           </div>
         ))}
       </div>
@@ -225,7 +227,7 @@ const ShotRoster: React.FC<ShotProps> = ({ t, dur }) => {
 const ShotSticky: React.FC<ShotProps> = ({ t, dur, seed }) => {
   const notes = [
     { text: 'do not run 0042 until hypnos signs off', color: 'rose' as const, author: 'martin' },
-    { text: 'demo at 18:00 — freeze main at 17:30', color: 'amber' as const, author: 'lea' },
+    { text: 'demo at 18:00, freeze main at 17:30', color: 'amber' as const, author: 'lea' },
     { text: "refund path is athena's. hands off.", color: 'sky' as const, author: 'hermes' },
   ];
   const n = notes[Math.floor(rand(seed) * notes.length)];

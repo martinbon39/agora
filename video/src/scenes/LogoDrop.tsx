@@ -31,11 +31,13 @@ export const LogoDrop: React.FC = () => {
 
   return (
     <Stage background="#0e0e0e">
-      {/* Tight enough to read as a glow behind the mark. A wide one at this
-          opacity floods the whole frame blue and the logo disappears into it. */}
+      {/* A neutral light bloom behind the mark. This used to be the accent
+          blue, which read as a coloured wash over the whole hit rather than as
+          the logo arriving. */}
       <Bloom
-        size={820}
-        opacity={interpolate(frame, [0, 16, 192], [0.3, 0.15, 0.1])}
+        size={760}
+        color="#ffffff"
+        opacity={interpolate(frame, [0, 16, 192], [0.13, 0.06, 0.04])}
         blur={150}
       />
 
@@ -82,11 +84,11 @@ export const LogoDrop: React.FC = () => {
 
         <div
           style={{
-            marginTop: 46,
-            fontFamily: font.mono,
-            fontSize: 24,
-            letterSpacing: 6,
-            textTransform: 'uppercase',
+            marginTop: 42,
+            fontFamily: font.sans,
+            fontSize: 38,
+            fontWeight: 500,
+            letterSpacing: -0.5,
             color: c.muted,
             opacity: tag,
             transform: `translateY(${(1 - tag) * 16}px)`,

@@ -9,7 +9,7 @@ import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
 import { c, font } from '../brand/tokens';
 import { BAR, BEAT } from '../lib/beats';
 import { sp } from '../lib/motion';
-import { Bloom, Stage } from '../lib/Stage';
+import { Stage } from '../lib/Stage';
 
 type Phrase = { bar: number; words: string[]; accent?: number; size: number };
 
@@ -17,9 +17,9 @@ type Phrase = { bar: number; words: string[]; accent?: number; size: number };
 // INSTALL" is ~1790px wide against 1620px of usable width and wraps, which
 // breaks the rhythm the other two set up.
 const PHRASES: Phrase[] = [
-  { bar: 0, words: ['FORTY', 'TEAMS'], accent: 0, size: 168 },
-  { bar: 1, words: ['ONE', 'AFTERNOON'], size: 168 },
-  { bar: 2, words: ['NOTHING', 'TO', 'INSTALL'], accent: 2, size: 126 },
+  { bar: 0, words: ['MADE', 'FOR', 'HACKATHONS'], accent: 2, size: 130 },
+  { bar: 1, words: ['MADE', 'FOR', 'TEAMS'], accent: 2, size: 168 },
+  { bar: 2, words: ['NOTHING', 'TO', 'INSTALL'], size: 126 },
 ];
 
 const Word: React.FC<{
@@ -53,31 +53,21 @@ export const Slams: React.FC = () => {
 
   return (
     <Stage>
-      <Bloom
-        x="30%"
-        y="55%"
-        size={1100}
-        opacity={interpolate(frame, [0, 60], [0.08, 0.18], {
-          extrapolateRight: 'clamp',
-        })}
-        blur={140}
-      />
-
       {/* the eyebrow the landing page uses, held for the whole section */}
       <div
         style={{
           position: 'absolute',
           left: 150,
           top: 300,
-          fontFamily: font.mono,
-          fontSize: 22,
-          letterSpacing: 4,
-          textTransform: 'uppercase',
+          fontFamily: font.sans,
+          fontSize: 27,
+          fontWeight: 500,
+          letterSpacing: -0.2,
           color: c.primary,
           opacity: interpolate(frame, [4, 20], [0, 1], { extrapolateRight: 'clamp' }),
         }}
       >
-        For hackathons
+        for hackathons, and the teams in them
       </div>
 
       {PHRASES.map((p) => {

@@ -8,7 +8,7 @@ npm install
 npm run setup     # synthesise the score, then inline the fonts (both generated)
 npm run check     # verify the score against the edit grid
 npm run dev       # Remotion Studio
-npm run render    # out/agora.mp4
+npm run render    # out/agora-announce.mp4
 ```
 
 ## The one idea worth knowing

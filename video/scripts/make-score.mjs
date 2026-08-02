@@ -25,26 +25,35 @@ const FPS = 60;
 const SPB = (60 / BPM) * SR; // samples per beat = 17640
 const BEATS_PER_BAR = 4;
 const SPBAR = SPB * BEATS_PER_BAR;
-const TOTAL_BARS = 46;
+const TOTAL_BARS = 53;
 const N = Math.round(SPBAR * TOTAL_BARS); // 3,245,760 samples ≈ 73.6s
 
 const barAt = (bar, beat = 0) => Math.round(bar * SPBAR + beat * SPB);
 
 // Named structural moments, in bars. The composition imports these.
+//
+// The three things the film is actually selling — the canvas, the fact that any
+// harness runs in it, and multiplayer — get 27 of the 53 bars between them.
+// The machine gun was cut from 6 bars to 4 and its cut density halved: it was
+// establishing "there is a lot here" at the cost of showing what any of it is.
 const MARKS = {
   coldOpen: 0,
   build: 2,
   machineGun: 5,
-  silence1: 10.75, // last beat of bar 10 — the hole before the drop
-  drop: 11,
-  actTerminals: 13,
-  actCanvas: 18,
-  actMultiplayer: 23,
-  climax: 34,
-  silence2: 39.75,
-  lockup: 40,
+  silence1: 8.75, // last beat of bar 8 — the hole before the drop
+  drop: 9,
+  actTerminals: 11,
+  actCanvas: 16,
+  actHarnesses: 24,
+  actMultiplayer: 28,
+  climax: 43,
+  silence2: 47.75,
+  lockup: 48,
   end: TOTAL_BARS,
 };
+
+const SILENCE1 = Math.round(MARKS.silence1 * SPBAR);
+const SILENCE2 = Math.round(MARKS.silence2 * SPBAR);
 
 // ---------------------------------------------------------------- buses
 
@@ -366,8 +375,7 @@ for (let bar = 0; bar < TOTAL_BARS; bar++) {
 
   // --- machine gun: the full groove, ramping, with the hole punched at the end
   if (isGun) {
-    const silenceFrom = barAt(10, 3); // last beat of bar 10 is dead air
-    const gate = (t) => t < silenceFrom;
+    const gate = (t) => t < SILENCE1;
 
     for (let b = 0; b < 4; b++) {
       const t = b0 + Math.round(b * SPB);
@@ -393,10 +401,12 @@ for (let bar = 0; bar < TOTAL_BARS; bar++) {
     }
     // the riser has to STOP at the hole, not sail through it — otherwise the
     // hard stop before the drop never happens and the impact lands on a wall
-    if (bar === 9) riser(b0, barAt(10, 3) - b0, 0.62);
-    if (bar === 10) {
-      // the hole: everything stops, one quiet reversed swell points at the drop
-      reverseSwell(barAt(10, 3) - Math.round(SPB * 0.15), SPB * 1.15, 0.3);
+    if (bar === Math.floor(MARKS.drop) - 2) riser(b0, SILENCE1 - b0, 0.62);
+    if (bar === Math.floor(MARKS.drop) - 1) {
+      // The hole: everything stops, one quiet reversed swell points at the drop.
+      // Kept quieter than the swell before the final impact — this is the
+      // deepest silence in the film and the drop has to land into nothing.
+      reverseSwell(SILENCE1 - Math.round(SPB * 0.15), SPB * 1.15, 0.2);
     }
     continue;
   }
@@ -452,8 +462,7 @@ for (let bar = 0; bar < TOTAL_BARS; bar++) {
 
   // --- climax: double-time, everything on
   if (isClimax) {
-    const silenceFrom = barAt(39, 3);
-    const gate = (t) => t < silenceFrom;
+    const gate = (t) => t < SILENCE2;
     for (let b = 0; b < 4; b++) {
       const t = b0 + Math.round(b * SPB);
       if (!gate(t)) continue;
@@ -475,9 +484,9 @@ for (let bar = 0; bar < TOTAL_BARS; bar++) {
       stab(ts, SPB * 0.22, [m], 0.38, 4000, 1600);
     }
     pad(b0, SPBAR, ch.tones.map((t) => t - 12), 0.45);
-    if (bar === MARKS.lockup - 2) riser(b0, barAt(39, 3) - b0, 0.8);
+    if (bar === MARKS.lockup - 2) riser(b0, SILENCE2 - b0, 0.8);
     if (bar === MARKS.lockup - 1) {
-      reverseSwell(barAt(39, 3) - Math.round(SPB * 0.15), SPB * 1.15, 0.32);
+      reverseSwell(SILENCE2 - Math.round(SPB * 0.15), SPB * 1.15, 0.32);
     }
     continue;
   }

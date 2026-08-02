@@ -28,7 +28,7 @@ const LATER: TermLine[] = [
   { spans: [{ text: 'reading ', color: term.brightBlack }, { text: 'src/payments/refund.ts', color: term.blue }] },
   { spans: [{ text: '✓', color: term.green }, { text: ' idempotency keys + 11 tests' }] },
   { spans: [{ text: 'running vitest…', color: term.brightBlack }] },
-  { spans: [{ text: '✓', color: term.green }, { text: ' 58 passed' }, { text: '  ·  6h 12m in session', color: term.brightBlack }] },
+  { spans: [{ text: '✓', color: term.green }, { text: ' 58 passed' }, { text: '   6h 12m in session', color: term.brightBlack }] },
 ];
 
 const DIE = BAR * 2; // 192 — the screen goes out on the bar
@@ -37,17 +37,28 @@ const BACK = DIE + 24; // one beat of nothing, then it snaps back
 
 export const ActTerminals: React.FC = () => {
   const frame = useCurrentFrame();
-  const dead = frame >= DIE && frame < BACK;
+
+  // Only the gap between the collapse finishing and the snap back is "dead".
+  // This used to start at DIE, which hid the collapse itself — and `collapse`
+  // clamped at 0.004 forever after, so the terminal spent the rest of the act
+  // squashed into a 2px line. The whole point of the act was invisible.
+  const dead = frame >= DARK && frame < BACK;
 
   // the CRT collapse: the picture squeezes to a line and blows out white
-  const collapse = interpolate(frame, [DIE, DARK], [1, 0.004], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
-  const blowout = interpolate(frame, [DIE, DIE + 4, DARK], [1, 2.6, 0], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
+  const collapse =
+    frame < DIE || frame >= BACK
+      ? 1
+      : interpolate(frame, [DIE, DARK], [1, 0.004], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+  const blowout =
+    frame < DIE || frame >= DARK
+      ? 0
+      : interpolate(frame, [DIE, DIE + 4, DARK], [1, 2.6, 0], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
 
   const enter = sp(frame, 0, 'glide');
   const snapBack = sp(frame, BACK, 'punch');
@@ -68,7 +79,7 @@ export const ActTerminals: React.FC = () => {
 
       {!dead && (
         <>
-          <SectionLabel index="01 — the terminal" title="Real terminals, not a log viewer" />
+          <SectionLabel kicker="real terminals, not a log viewer" title="Close the laptop. It keeps running." />
 
           <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center' }}>
             <div
@@ -104,10 +115,10 @@ export const ActTerminals: React.FC = () => {
         <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center' }}>
           <div
             style={{
-              width: interpolate(frame, [DIE, DARK, BACK], [1180, 700, 90]),
+              width: interpolate(frame, [DARK, BACK], [1180, 90]),
               height: 2,
               background: '#ffffff',
-              opacity: interpolate(frame, [DIE, DARK, BACK - 2], [0.9, 0.5, 0]),
+              opacity: interpolate(frame, [DARK, BACK - 4, BACK - 2], [0.95, 0.35, 0]),
               boxShadow: '0 0 60px rgba(255,255,255,0.6)',
             }}
           />
@@ -115,12 +126,13 @@ export const ActTerminals: React.FC = () => {
       )}
 
       <Caption from={BACK + 6} until={BACK + BAR} y={900}>
-        You closed the laptop. <Punch at={BACK + BEAT + 6}>It kept going.</Punch>
+        Six hours later. <Punch at={BACK + BEAT + 6}>It never stopped.</Punch>
       </Caption>
 
       <Caption from={BACK + BAR + 6} y={900} color={c.muted}>
-        Every session is a detached <span style={{ color: c.foreground }}>tmux</span> session on your
-        own server. The browser is only a viewer.
+        Every session is a detached <span style={{ color: c.foreground }}>tmux</span> session on your own
+        server. Close the tab, restart agora, walk away. The browser was only ever
+        a viewer.
       </Caption>
     </Stage>
   );

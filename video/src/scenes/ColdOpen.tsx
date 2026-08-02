@@ -76,7 +76,7 @@ export const ColdOpen: React.FC = () => {
       <AbsoluteFill
         style={{
           pointerEvents: 'none',
-          background: `radial-gradient(60% 40% at 50% 50%, ${c.primary}22, transparent 70%)`,
+          background: 'radial-gradient(60% 40% at 50% 50%, rgba(255,255,255,0.07), transparent 70%)',
           opacity: swell,
         }}
       />
