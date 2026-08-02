@@ -12,6 +12,18 @@ browser window onto them — from your desk, or from your phone on a train.
 ![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-linux-lightgrey)
 
+<br />
+
+<!-- Replace the href with the public video URL once the repo is on GitHub:
+     drag video/out/agora-announce.mp4 into a release or an issue comment and
+     GitHub returns a permanent URL. The poster below is committed, so this
+     block already renders correctly on the repo page. -->
+[![agora — 85 second film](docs/film-poster.png)](docs/film-poster.png)
+
+**[Watch the film](docs/film-poster.png)** · 85 seconds · built with
+[Remotion](https://remotion.dev), score and all, from
+[`video/`](video/) in this repo
+
 </div>
 
 ---
