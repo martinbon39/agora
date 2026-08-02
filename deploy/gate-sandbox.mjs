@@ -171,11 +171,25 @@ if (sid) {
     "exit " + dbRead + " (0 = readable; -1 = the probe never ran, so this proves nothing)"
   );
 
-  const otherDb = inPane("test -r " + path.join(os.homedir(), ".orbit", "orbit.db"), "O");
+  // The point is that the tmpfs hides the WHOLE home, not just agora's own
+  // files: a session must not reach a sibling app's database, an ssh key or a
+  // cloud credential sitting beside them. This used to probe one hardcoded
+  // path from the author's machine, which does not exist anywhere else — so on
+  // every other machine `test -r` returned 1 and the assertion passed without
+  // testing anything. A decoy this gate plants itself is true everywhere.
+  const decoy = path.join(os.homedir(), `.agora-gate-sandbox-decoy-${process.pid}`);
+  fs.writeFileSync(decoy, "a neighbour's secret", { mode: 0o600 });
+  const outside = fs.existsSync(decoy);
+  const otherFile = inPane("test -r " + decoy, "O");
+  fs.rmSync(decoy, { force: true });
   check(
-    "REFUSED: nor the other cockpit's database in the same home",
-    ran(otherDb) && otherDb !== 0,
-    "exit " + otherDb
+    "the decoy really is readable outside — otherwise the refusal below is vacuous",
+    outside
+  );
+  check(
+    "REFUSED: nor anything else in the same home — a neighbour's file is gone too",
+    ran(otherFile) && otherFile !== 0,
+    "exit " + otherFile
   );
 
   const secret = inPane("test -r " + path.join(DATA, "hook-secret"), "K");

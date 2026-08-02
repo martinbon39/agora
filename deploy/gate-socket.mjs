@@ -188,6 +188,29 @@ if (!bwrap) {
   );
 }
 
+// ---- a path the kernel cannot hold --------------------------------------
+// sun_path is 108 bytes on Linux. Past that, bind() truncates and reports
+// success, so listen() called back, no socket existed at the path agora had in
+// hand, and the chmod that puts 0600 on it died with a bare ENOENT — the server
+// exited at boot naming neither the cause nor the setting. Worse, two deep data
+// dirs sharing a 107-byte prefix collided with EADDRINUSE, which reads as
+// "already running". Found by pointing AGORA_DATA_DIR at a scratch directory
+// that happened to be nested.
+{
+  const deep = path.join(tmp, "d".repeat(90), "data");
+  const long = spawnSync(process.execPath, [path.resolve("server/dist/index.js")], {
+    env: { ...env, AGORA_DATA_DIR: deep, AGORA_PORT: String(PORT + 1) },
+    encoding: "utf8",
+    timeout: 20_000,
+  });
+  const said = (long.stderr ?? "") + (long.stdout ?? "");
+  check(
+    "REFUSED: a socket path over the kernel's limit is refused at boot, not discovered by a chmod",
+    long.status === 1 && /107|AGORA_DATA_DIR/.test(said),
+    long.status === 0 ? "it started anyway" : said.replace(/\s+/g, " ").trim().slice(0, 140)
+  );
+}
+
 /**
  * Reap the server, and FAIL if it took a SIGKILL.
  *

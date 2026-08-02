@@ -206,6 +206,36 @@ async function main() {
   // first. `request` only: the hook API is plain HTTP, and the websocket
   // endpoints are the dashboard's, which arrives over TCP.
   const sockPath = socketPath();
+  // A unix socket path is a fixed-size field in the kernel — sun_path, 108
+  // bytes on Linux including the terminator. Past that, bind() takes a
+  // TRUNCATED path and reports success: listen() fires its callback, no socket
+  // exists where agora believes one does, and the chmod below dies with a bare
+  // ENOENT naming a path that looks perfectly fine. The server then exits at
+  // boot having explained nothing. Two deep data dirs sharing a 107-byte prefix
+  // collide with EADDRINUSE instead, which reads as "already running".
+  //
+  // Refuse first, and say which setting to change. The 0600 below is the only
+  // guard on a credential-free door, and it cannot be applied to a file whose
+  // real name we no longer know.
+  if (Buffer.byteLength(sockPath) > 107) {
+    process.stderr.write(
+      [
+        "",
+        "  agora refuses to start.",
+        "",
+        `  Its unix socket path is ${Buffer.byteLength(sockPath)} bytes:`,
+        `    ${sockPath}`,
+        "",
+        "  The kernel allows 107. Past that the path is silently truncated and",
+        "  the socket ends up somewhere nobody is listening.",
+        "",
+        "  Point AGORA_DATA_DIR at a shorter path, or set AGORA_SOCKET directly",
+        "  to somewhere short (e.g. /run/agora.sock).",
+        "",
+      ].join("\n")
+    );
+    process.exit(1);
+  }
   // 0700 on the directory: a sandboxed session is handed this directory, so it
   // must contain the socket and nothing else
   fs.mkdirSync(path.dirname(sockPath), { recursive: true, mode: 0o700 });
