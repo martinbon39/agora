@@ -1,0 +1,8 @@
+node_modules/
+out/
+
+# generated — rebuild with `npm run score`
+public/score.wav
+
+# generated — rebuild with `npm run fonts`
+src/brand/fonts.ts

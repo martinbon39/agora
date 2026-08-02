@@ -1,0 +1,36 @@
+{
+  "bpm": 150,
+  "fps": 60,
+  "framesPerBeat": 24,
+  "framesPerBar": 96,
+  "totalBars": 46,
+  "durationInFrames": 4416,
+  "marks": {
+    "coldOpen": 0,
+    "build": 192,
+    "machineGun": 480,
+    "silence1": 1032,
+    "drop": 1056,
+    "actTerminals": 1248,
+    "actCanvas": 1728,
+    "actMultiplayer": 2208,
+    "climax": 3264,
+    "silence2": 3816,
+    "lockup": 3840,
+    "end": 4416
+  },
+  "markBars": {
+    "coldOpen": 0,
+    "build": 2,
+    "machineGun": 5,
+    "silence1": 10.75,
+    "drop": 11,
+    "actTerminals": 13,
+    "actCanvas": 18,
+    "actMultiplayer": 23,
+    "climax": 34,
+    "silence2": 39.75,
+    "lockup": 40,
+    "end": 46
+  }
+}
