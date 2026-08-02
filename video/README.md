@@ -1,6 +1,6 @@
 # agora — announcement film
 
-An 85-second launch film for agora, built in [Remotion](https://remotion.dev).
+An 80-second launch film for agora, built in [Remotion](https://remotion.dev).
 1920×1080, 60fps, with an original score.
 
 ```sh
@@ -47,23 +47,28 @@ PASS  silence1 is a real hard stop                          13.4 dB below
 | Bars | Frames | Section |
 |---|---|---|
 | 0–2 | 0–192 | cold open, one prompt and nine keystrokes |
-| 2–5 | 192–480 | made for hackathons, made for teams, one word per beat |
+| 2–5 | 192–480 | made for hackathons, made for teams, open source |
 | 5–9 | 480–864 | machine gun, 34 shots ramping a beat to a quarter |
 | — | 840–864 | **the hole**: picture and score both stop |
 | 9–11 | 864–1056 | the drop, and the logo |
-| 11–16 | 1056–1536 | close the laptop, it keeps running |
-| 16–24 | 1536–2304 | **an infinite canvas you can arrange** |
-| 24–28 | 2304–2688 | **Claude, Codex, Gemini, or a plain shell** |
-| 28–34 | 2688–3264 | **agents that talk to each other** (no humans on screen) |
-| 34–43 | 3264–4128 | **invite anyone**: cursors, acting on the canvas, taking a keyboard |
-| 43–48 | 4128–4608 | climax, the whole room, then fragments |
-| — | 4584–4608 | the second hole |
-| 48–53 | 4608–5088 | lockup |
+| 11–15 | 1056–1440 | a laptop closes in 3D and the session carries on without it |
+| 15–22 | 1440–2112 | **an infinite canvas you can arrange** |
+| 22–26 | 2112–2496 | **Claude, Codex, Gemini, or a plain shell**, each drawing its own TUI |
+| 26–31 | 2496–2976 | **agents that talk to each other** (no humans on screen) |
+| 31–40 | 2976–3840 | **invite anyone**: cursors, acting on the canvas, taking a keyboard |
+| 40–45 | 3840–4320 | climax, the whole room, holding tempo rather than accelerating |
+| — | 4296–4320 | the second hole |
+| 45–50 | 4320–4800 | lockup |
 
-84.8s at 60fps. The four bolded acts are 51% of the runtime: they are what the
+80s at 60fps. The four bolded acts are half the runtime: they are what the
 product actually is. Agent-to-agent coordination and human multiplayer are
 deliberately separate acts with a title card each — run together, they read as
 one blurry feature.
+
+Each act gets a title and nothing else. There is no kicker above it and at most
+one caption below, at the beat where the act turns: a cursor landing inside
+someone else's terminal, and that terminal printing "martin joined this
+session", does not need a caption explaining what you are looking at.
 
 ## Where the look comes from
 
