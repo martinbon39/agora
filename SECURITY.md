@@ -158,8 +158,8 @@ currently no value that makes it genuinely sandboxed.
   `deploy/Caddyfile` does this and sets HSTS and `nosniff`.
 - Run agora as a dedicated, unprivileged user — never root. `deploy/provision.sh`
   creates one, and `agora.service` sets `NoNewPrivileges=true`.
-- Only invite guests you would trust in the room. Scope every invite to a single
-  project unless you truly mean "the whole cockpit". Send invite links over
+- Only invite guests you would trust in the room. Every invite names a single
+  project; there is no blanket scope to reach for by accident. Send invite links over
   something you would send a password over, and rotate one you have misdirected
   rather than hoping.
 - `AGORA_DATA_DIR` holds session logs and your database. Back it up, and treat

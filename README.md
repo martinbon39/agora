@@ -189,7 +189,8 @@ becomes the owner, addresses you invite become guests, and everyone else is
 refused. Configure it and the same invites also work by Google account, which
 is worth having when you would rather not pass links around at all.
 
-**Guests** are scoped to one project (or, explicitly, the whole cockpit). They
+**Guests** are scoped to exactly one project — an invite has to name one, there
+is no "everything" scope. They
 collaborate on that canvas and its terminals but can't administer anything, and
 the scope is re-read from the invite on every request, so revoking someone kicks
 them out of sessions they already have open.

@@ -42,14 +42,27 @@ export async function inviteRoutes(app: FastifyInstance) {
       if (email === allowedEmail()) {
         return reply.code(400).send({ error: "that address is already the owner" });
       }
-      // scope: a real project directory, or null = whole cockpit
-      let project: string | null = null;
-      if (typeof req.body?.project === "string" && req.body.project) {
-        const p = path.resolve(req.body.project);
-        if (!withinRoot(config.projectsDir, p) || !fs.existsSync(p)) {
-          return reply.code(400).send({ error: "unknown project" });
-        }
-        project = p;
+      // Scope: a real project directory. An invite MUST name one.
+      //
+      // A null scope was offered as "the whole cockpit" and granted nothing at
+      // all: scopeAllows ends in `invite.project === target`, and null equals no
+      // path, so such a guest saw an empty project list and was refused
+      // everywhere. The option was in the UI and in the README, and it produced
+      // an account that could do nothing — which reads as agora being broken
+      // rather than as a scope that was never implemented.
+      //
+      // It is refused rather than implemented because "every project" has no
+      // safe meaning here. Authority deliberately moved off `role` and onto the
+      // projects table to close a cross-tenant hole (see scopeAllows); a guest
+      // who matched every project would reopen exactly it, seeing the projects
+      // of owners who never invited them. Deciding whose projects a blanket
+      // invite covers is a product call, not a patch.
+      if (typeof req.body?.project !== "string" || !req.body.project) {
+        return reply.code(400).send({ error: "an invite must name a project" });
+      }
+      const project = path.resolve(req.body.project);
+      if (!withinRoot(config.projectsDir, project) || !fs.existsSync(project)) {
+        return reply.code(400).send({ error: "unknown project" });
       }
       const before = invites.get(email);
       invites.add(email, project);

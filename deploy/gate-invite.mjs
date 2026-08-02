@@ -201,6 +201,28 @@ check(
   JSON.stringify((r.json().projects ?? []).map((p) => p.path))
 );
 
+// --- an invite must name a project ----------------------------------------
+// A null scope was offered in the UI as "all of agora" and granted NOTHING:
+// scopeAllows ends in `invite.project === target`, and null matches no path, so
+// the guest saw an empty project list and was refused everywhere. An account
+// that can do nothing reads as agora being broken. Refused at the door now —
+// "every project" has no safe meaning while authority lives in the projects
+// table, which is what keeps one owner's guests out of another's work.
+for (const [label, payload] of [
+  ["no project at all", { email: "blanket@example.com" }],
+  ["an explicit null", { email: "blanket@example.com", project: null }],
+  ["an empty string", { email: "blanket@example.com", project: "" }],
+]) {
+  r = await as(owner, { method: "POST", url: "/api/invites", payload });
+  check(`REFUSED: an invite with ${label} is rejected, not silently useless`, r.statusCode === 400, `got ${r.statusCode}`);
+}
+check(
+  "…and no such invite was created",
+  !(await as(owner, { method: "GET", url: "/api/invites" })).json().invites.some(
+    (i) => i.email === "blanket@example.com"
+  )
+);
+
 // --- the owner's own address is not invitable -----------------------------
 r = await as(owner, { method: "POST", url: "/api/invites", payload: { email: "owner@example.com" } });
 check(

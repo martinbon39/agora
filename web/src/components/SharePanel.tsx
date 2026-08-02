@@ -94,9 +94,12 @@ export function SharePanel({
           setLink(null); // it cannot be shown again anyway
           return;
         }
-        // re-anchor on every open: the scope offered is the canvas the owner is
-        // looking at NOW, not the one from when the page loaded
-        setScope(activeProject ?? "");
+        // Re-anchor on every open: the scope offered is the canvas the owner is
+        // looking at NOW, not the one from when the page loaded. Falling back to
+        // the first project matters — a <select> whose value matches no option
+        // still DISPLAYS the first one, so from the Home view the owner would
+        // read a project name off the control while the form refused to submit.
+        setScope(activeProject ?? projects[0]?.path ?? "");
         load();
       }}
     >
@@ -122,6 +125,11 @@ export function SharePanel({
               canvas, cursors, terminals. Anyone holding the link gets in, so
               send it the way you would a password.
             </p>
+            {projects.length === 0 && (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Create a project first — an invite is always scoped to one.
+              </p>
+            )}
           </div>
           <form
             className="flex flex-col gap-1.5"
@@ -140,7 +148,7 @@ export function SharePanel({
               />
               <button
                 type="submit"
-                disabled={busy || !email.trim()}
+                disabled={busy || !email.trim() || !scope}
                 className="h-8 shrink-0 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
               >
                 Invite
@@ -157,7 +165,6 @@ export function SharePanel({
                   "{p.name}" canvas only
                 </option>
               ))}
-              <option value="">⚠ All of agora (every canvas)</option>
             </select>
           </form>
           {link && (
