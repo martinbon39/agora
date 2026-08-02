@@ -57,6 +57,11 @@ app.get("/test-login/owner", async (_req, reply) => {
   issueSessionFor(reply, { email: "owner@example.com", name: "owner", role: "owner" });
   return { ok: true };
 });
+// stands in for a Google or passkey sign-in: something proved the address
+app.get("/test-login/alice", async (_req, reply) => {
+  issueSessionFor(reply, { email: "alice@example.com", name: "alice", role: "owner" });
+  return { ok: true };
+});
 requireAuth(app);
 await app.register(authRoutes);
 await app.register(googleAuthRoutes);
@@ -200,6 +205,53 @@ check(
   (r.json().projects ?? []).every((p) => p.path === BETA),
   JSON.stringify((r.json().projects ?? []).map((p) => p.path))
 );
+
+// --- a link asserts an address; it does not prove one ----------------------
+// The sharpest edge on link-based sign-in. scopeAllows answers `true` for any
+// project whose owner_email matches the session's — correct while every session
+// came from a passkey or from Google, both of which establish that the human IS
+// that address. A link only carries an address the OWNER typed. So an invite
+// naming someone who already has projects handed over that whole account: every
+// project they own, to anyone the link reached. The invite named one.
+const ALICES = path.join(tmp, "projects", "alices-own");
+fs.mkdirSync(ALICES, { recursive: true });
+projects.insert({ path: ALICES, name: "alices-own", owner_email: "alice@example.com" });
+r = await as(owner, {
+  method: "POST",
+  url: "/api/invites",
+  payload: { email: "alice@example.com", project: ALPHA },
+});
+const aliceToken = r.json().link.split("/").pop();
+r = await app.inject({ method: "POST", url: "/api/auth/invite", payload: { token: aliceToken } });
+const holder = r.cookies.find((c) => c.name === "agora_session")?.value;
+check("a link naming an address that owns projects still redeems", r.statusCode === 200 && !!holder);
+r = await as(holder, { method: "GET", url: "/api/projects" });
+const seenByHolder = (r.json().projects ?? []).map((p) => p.path);
+check(
+  "THE POINT: it grants the invite's project and NOT the account that address owns",
+  seenByHolder.length === 1 && seenByHolder[0] === ALPHA,
+  JSON.stringify(seenByHolder)
+);
+const holderUser = getAuthUser({ cookies: { agora_session: holder } });
+check(
+  "REFUSED: and scopeAllows refuses the projects that address owns",
+  scopeAllows(holderUser, ALPHA) && !scopeAllows(holderUser, ALICES),
+  `invited=${scopeAllows(holderUser, ALPHA)} hers=${scopeAllows(holderUser, ALICES)}`
+);
+check(
+  "…because the session records that nobody proved the address",
+  holderUser?.viaLink === true,
+  JSON.stringify(holderUser)
+);
+// Google and passkey sessions must keep their ownership: they proved it.
+const proved = await app.inject({ method: "GET", url: "/test-login/alice" });
+const aliceReal = proved.cookies.find((c) => c.name === "agora_session").value;
+check(
+  "…while a proved sign-in for the same address still owns its projects",
+  scopeAllows(getAuthUser({ cookies: { agora_session: aliceReal } }), ALICES),
+  "the fix must not cost a real account its own work"
+);
+await as(owner, { method: "DELETE", url: "/api/invites/alice%40example.com" });
 
 // --- an invite must name a project ----------------------------------------
 // A null scope was offered in the UI as "all of agora" and granted NOTHING:

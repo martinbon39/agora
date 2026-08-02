@@ -1,5 +1,5 @@
 import type { WebSocket } from "ws";
-import type { AuthUser } from "./auth.js";
+import { scopeAllows, type AuthUser } from "./auth.js";
 import { keepAlive } from "./heartbeat.js";
 
 /**
@@ -98,7 +98,12 @@ export function addEventClient(ws: WebSocket, user: AuthUser) {
       meta.clientId = typeof msg.clientId === "string" ? msg.clientId.slice(0, 64) : null;
       let project = typeof msg.project === "string" && msg.project ? msg.project : null;
       // a scoped guest only ever joins their own project's room
-      if (project && user.role === "guest" && user.project && user.project !== project) {
+      // `user.project &&` used to be part of this test, which waved through the
+      // one case that should never pass: a guest with NO scope. Such rows exist
+      // (an invite could once be created with a null project) and they matched
+      // nothing in scopeAllows, so those guests were refused every HTTP route
+      // while being admitted to any presence room they named.
+      if (project && user.role === "guest" && user.project !== project) {
         project = null;
       }
       meta.project = project;
@@ -163,7 +168,14 @@ export function broadcast(event: object, scope?: { project?: string; ownerOnly?:
     if (scope) {
       const u = meta.user;
       if (scope.ownerOnly && u.role !== "owner") continue;
-      if (scope.project && u.role === "guest" && u.project && u.project !== scope.project) continue;
+      // Ask the same function every HTTP route asks, rather than re-deriving
+      // the answer from `role` here. This filter used to constrain guests only,
+      // so with open signup every tenant — all of them role "owner" — received
+      // every other tenant's chat and canvas traffic, which is the cross-tenant
+      // hole the projects table exists to close, reopened on the realtime path.
+      // It also skipped guests whose scope was null, admitting them to
+      // everything.
+      if (scope.project && !scopeAllows(u, scope.project)) continue;
     }
     ws.send(payload);
   }

@@ -100,6 +100,7 @@ export async function hookRoutes(app: FastifyInstance) {
       role: "owner" as const,
       color: colorForEmail(allowedEmail()),
       project: null,
+      viaLink: false,
     };
     addEventClient(socket, user);
   });

@@ -50,6 +50,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const run = async () => {
+      // Clear the fragment before anything can throw. The token is already in
+      // `inviteToken`; leaving it in the address bar means it survives in
+      // browser history and in whatever the user pastes when the first request
+      // fails because the server is restarting.
+      if (inviteToken) history.replaceState(null, "", "/");
       let me = await api.authMe();
       // Redeem an invitation before rendering, so someone arriving on their
       // link is signed in rather than shown a login screen they have no way to
@@ -65,7 +70,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
           setDenied(true); // dead or revoked link — the "not invited" screen
         }
       }
-      if (inviteToken) history.replaceState(null, "", "/");
       setEnrolled(me.enrolled);
       setGoogle(me.google ?? false);
       setUser(me.user ?? null);

@@ -32,6 +32,10 @@ export interface AuthUser {
   /** Project path this user is confined to; null = the whole cockpit.
    *  Owners are always null; guests inherit it live from their invite. */
   project: string | null;
+  /** True when this session came from an invite LINK, so the email on it was
+   *  asserted by the invite and proved by nobody. Google and passkey sessions
+   *  are false: something checked who the human was. See scopeAllows. */
+  viaLink: boolean;
 }
 
 /** May this user touch that project's resources?
@@ -55,7 +59,17 @@ export function scopeAllows(user: AuthUser | undefined, project: string): boolea
   const target = path.resolve(project);
   const row = projects.get(target);
   if (!row) return false;
-  if (row.owner_email === user.email.toLowerCase()) return true;
+  // Ownership answers to a PROVED identity only.
+  //
+  // This branch predates invite links and was safe while every session came
+  // from a passkey or from Google, both of which establish that the human is
+  // that address. A link does not: it asserts an email the owner typed, and
+  // whoever holds the link gets a session carrying it. So an invite naming an
+  // address that already owns projects handed over that entire account —
+  // scopeAllows returned true here for every project that email owns, and
+  // /api/projects listed them all, while the invite named exactly one. Anyone
+  // the link was forwarded to got the same. Verified before fixing.
+  if (!user.viaLink && row.owner_email === user.email.toLowerCase()) return true;
   // a guest reaches exactly the one project their live invite names
   const invite = invites.get(user.email);
   return !!invite && invite.revoked_at == null && invite.project === target;
@@ -161,6 +175,10 @@ export function initAuthDb(database: Database.Database) {
     // sha256 of the invite link's token. Invites predating links have NULL and
     // keep working through Google — the owner mints a link when they want one.
     `ALTER TABLE invites ADD COLUMN token_hash TEXT`,
+    // 'link' when the session was minted by redeeming an invite link. NULL on
+    // every pre-existing row, which is correct: they all came from a passkey or
+    // from Google, both of which proved the address.
+    `ALTER TABLE auth_sessions ADD COLUMN via TEXT`,
   ]) {
     try {
       db.exec(ddl);
@@ -168,6 +186,16 @@ export function initAuthDb(database: Database.Database) {
       // column already exists
     }
   }
+  // Retire invites that name no project. They could be created when the UI
+  // offered "all of agora", and they granted nothing: scopeAllows ends in
+  // `invite.project === target` and null matches no path, so those guests were
+  // refused every route. What they DID still reach was the realtime layer,
+  // whose guards skipped anyone with a null scope. Revoking is the honest
+  // repair — the access never worked, and the owner can re-invite with a real
+  // project in one click.
+  db.prepare(
+    `UPDATE invites SET revoked_at = ?, token_hash = NULL WHERE project IS NULL AND revoked_at IS NULL`
+  ).run(Date.now());
 }
 
 /** Guest allowlist. Revoking keeps the row (audit + easy re-invite) but kills
@@ -281,9 +309,15 @@ export function getAuthUser(req: FastifyRequest): AuthUser | null {
   const token = req.cookies?.[SESSION_COOKIE];
   if (!token) return null;
   const row = db
-    .prepare(`SELECT expires_at, email, name, role FROM auth_sessions WHERE token_hash = ?`)
+    .prepare(`SELECT expires_at, email, name, role, via FROM auth_sessions WHERE token_hash = ?`)
     .get(sha256(token)) as
-    | { expires_at: number; email: string | null; name: string | null; role: string | null }
+    | {
+        expires_at: number;
+        email: string | null;
+        name: string | null;
+        role: string | null;
+        via: string | null;
+      }
     | undefined;
   if (!row || row.expires_at <= Date.now()) return null;
   // sliding expiration: active users never get logged out
@@ -304,7 +338,14 @@ export function getAuthUser(req: FastifyRequest): AuthUser | null {
     if (!invite || invite.revoked_at != null) return null;
     project = invite.project;
   }
-  return { email, name, role, color: colorForEmail(email || name), project };
+  return {
+    email,
+    name,
+    role,
+    color: colorForEmail(email || name),
+    project,
+    viaLink: row.via === "link",
+  };
 }
 
 function isAuthed(req: FastifyRequest): boolean {
@@ -321,7 +362,9 @@ export function issueSessionFor(
 
 function issueSession(
   reply: FastifyReply,
-  identity?: { email: string; name: string; role: AuthRole }
+  identity?: { email: string; name: string; role: AuthRole },
+  /** How the address was established. "link" means it was not — see AuthUser. */
+  via?: "link"
 ) {
   // Every login path funnels through here, so this is where a tenant comes into
   // existence — first sign-in creates the row, later ones bump last_seen. Doing
@@ -330,14 +373,15 @@ function issueSession(
   if (identity?.email) users.seen(identity.email, identity.name);
   const token = crypto.randomBytes(32).toString("base64url");
   db.prepare(
-    `INSERT INTO auth_sessions (token_hash, created_at, expires_at, email, name, role) VALUES (?, ?, ?, ?, ?, ?)`
+    `INSERT INTO auth_sessions (token_hash, created_at, expires_at, email, name, role, via) VALUES (?, ?, ?, ?, ?, ?, ?)`
   ).run(
     sha256(token),
     Date.now(),
     Date.now() + SESSION_TTL_MS,
     identity?.email ?? null,
     identity?.name ?? null,
-    identity?.role ?? null
+    identity?.role ?? null,
+    via ?? null
   );
   reply.setCookie(SESSION_COOKIE, token, {
     path: "/",
@@ -568,11 +612,12 @@ export async function authRoutes(app: FastifyInstance) {
   app.post<{ Body: { token?: string } }>("/api/auth/invite", async (req, reply) => {
     const invite = invites.byToken(req.body?.token ?? "");
     if (!invite) return reply.code(403).send({ error: "invalid or revoked invitation" });
-    issueSession(reply, {
-      email: invite.email,
-      name: invite.email.split("@")[0] || "guest",
-      role: "guest",
-    });
+    issueSession(
+      reply,
+      { email: invite.email, name: invite.email.split("@")[0] || "guest", role: "guest" },
+      // nobody proved the holder is this address — see AuthUser.viaLink
+      "link"
+    );
     return { ok: true };
   });
 

@@ -50,7 +50,11 @@ export async function projectRoutes(app: FastifyInstance) {
     // root means the answer starts as "everybody's projects" and narrows —
     // one forgotten filter and it leaks. Starting from rows owned by the caller
     // means a leak needs a wrong query, not a missing one.
-    const rows = req.authUser ? registry.forOwner(req.authUser.email) : [];
+    // A link-issued session owns nothing: its email was asserted by whoever
+    // wrote the invite, not proved by the person holding the link, so listing
+    // "their" projects would hand over an account the invite only meant to add
+    // a guest to. Its one project comes from the invite, below.
+    const rows = req.authUser && !req.authUser.viaLink ? registry.forOwner(req.authUser.email) : [];
     // a guest owns nothing and sees exactly the project their invite names
     if (req.authUser?.project && scopeAllows(req.authUser, req.authUser.project)) {
       const invited = registry.get(path.resolve(req.authUser.project));
