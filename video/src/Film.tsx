@@ -8,7 +8,7 @@ import { ColdOpen } from './scenes/ColdOpen';
 import { Slams } from './scenes/Slams';
 import { MachineGun } from './scenes/MachineGun';
 import { LogoDrop } from './scenes/LogoDrop';
-import { ActTerminals } from './scenes/ActTerminals';
+import { ActLaptop } from './scenes/ActLaptop';
 import { ActCanvas } from './scenes/ActCanvas';
 import { ActHarnesses } from './scenes/ActHarnesses';
 import { ActAgentTalk } from './scenes/ActAgentTalk';
@@ -58,7 +58,7 @@ export const Film: React.FC = () => (
       <LogoDrop />
     </Sequence>
     <Sequence from={S.terminals.from} durationInFrames={S.terminals.dur}>
-      <ActTerminals />
+      <ActLaptop />
     </Sequence>
     <Sequence from={S.canvas.from} durationInFrames={S.canvas.dur}>
       <ActCanvas />

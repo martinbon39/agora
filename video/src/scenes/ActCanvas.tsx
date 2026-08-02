@@ -154,7 +154,7 @@ const NODES: Placed[] = [
     key: 'nyx',
     x: -620,
     y: 520,
-    at: BEAT * 13,
+    at: BEAT * 9,
     render: () => (
       <TerminalNode
         name="nyx"
@@ -172,7 +172,7 @@ const NODES: Placed[] = [
     key: 'note3',
     x: 1700,
     y: 180,
-    at: BEAT * 15,
+    at: BEAT * 11,
     render: () => (
       <StickyNode
         width={240}
@@ -187,7 +187,7 @@ const NODES: Placed[] = [
     key: 'note4',
     x: 1660,
     y: 620,
-    at: BEAT * 17,
+    at: BEAT * 13,
     render: () => (
       <StickyNode
         width={240}

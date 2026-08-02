@@ -17,6 +17,9 @@ import { CanvasBackground } from '../ui/CanvasBackground';
 import { HarnessAvatar } from '../ui/HarnessAvatar';
 import { Terminal, type TermLine } from '../ui/Terminal';
 import { TerminalNode } from '../ui/TerminalNode';
+import { TuiClaude } from '../ui/TuiClaude';
+import { TuiCodex } from '../ui/TuiCodex';
+import { TuiGemini } from '../ui/TuiGemini';
 
 const dim = (text: string) => ({ text, color: term.brightBlack });
 const ok = (text: string) => ({ text, color: term.green });
@@ -66,7 +69,7 @@ const TERMS = [
     x: 130,
     y: 430,
     w: 540,
-    h: 300,
+    h: 330,
     state: 'working',
     label: 'working',
     lines: CLAUDE_LINES,
@@ -78,7 +81,7 @@ const TERMS = [
     x: 700,
     y: 460,
     w: 540,
-    h: 300,
+    h: 330,
     state: 'needs_approval',
     label: 'needs approval',
     lines: CODEX_LINES,
@@ -196,12 +199,16 @@ export const ActHarnesses: React.FC = () => {
               width={t.w}
               height={t.h}
             >
-              <Terminal
-                lines={[...t.lines]}
-                visibleChars={Math.max(0, Math.floor((frame - t.at - 8) * 1.6))}
-                showCursor
-                fontSize={14}
-              />
+              {/* Each harness draws its own TUI. Showing the same generic
+                  session text under three different names was the thing that
+                  made "any engine" look like a label rather than a fact. */}
+              {t.harness === 'codex' ? (
+                <TuiCodex width={t.w} height={t.h - 36} frame={frame - t.at} fontSize={13} />
+              ) : t.harness === 'gemini' ? (
+                <TuiGemini width={t.w} height={t.h - 36} frame={frame - t.at} fontSize={13} />
+              ) : (
+                <TuiClaude width={t.w} height={t.h - 36} frame={frame - t.at} fontSize={13} />
+              )}
             </TerminalNode>
           </div>
         );
