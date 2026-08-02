@@ -101,7 +101,11 @@ const TERMS = [
 ] as const;
 
 // the closing command line
-const SPAWN = BAR * 2 + BEAT * 3; // 264 — the box lands on the beat
+// The act lost a bar and this did not move, so the command typed past the end
+// of the scene and its reply never arrived: the shell was cut mid-sentence.
+// It starts a bar and a half earlier and types twice as fast, which leaves the
+// reply on screen for a bar and a half.
+const SPAWN = BAR + BEAT * 3; // 168 — the box lands on the beat
 const TYPE_FROM = SPAWN + 4; // 268
 const CMD_SPANS = [
   dim('$ '),
@@ -111,13 +115,13 @@ const CMD_SPANS = [
   { text: 'codex', color: term.magenta },
 ];
 const CMD_CHARS = CMD_SPANS.reduce((n, s) => n + s.text.length, 0); // 29
-const RESP = TYPE_FROM + CMD_CHARS * 2; // 326 — typed at 2 frames per char
+const RESP = TYPE_FROM + CMD_CHARS; // typed at one frame per char
 
 export const ActHarnesses: React.FC = () => {
   const frame = useCurrentFrame();
 
-  const spawnIn = sp(frame, SPAWN, 'punch');
-  const typed = Math.max(0, Math.floor((frame - TYPE_FROM) / 2));
+  const spawnIn = rise(frame, SPAWN, 20);
+  const typed = Math.max(0, frame - TYPE_FROM);
   const spawnLines: TermLine[] = [
     { spans: [...CMD_SPANS] },
     ...(frame >= RESP

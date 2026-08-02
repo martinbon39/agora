@@ -8,6 +8,7 @@
 import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
 import { c, font, term } from '../brand/tokens';
+import { appEase } from '../lib/motion';
 import { SIXTEENTH } from '../lib/beats';
 import { Stage } from '../lib/Stage';
 
@@ -21,7 +22,7 @@ const TYPED = 'how do i win this hackathon';
 const TYPE_FROM = 96;
 const TYPE_TO = 174; // one keystroke tick per 16th across the bar
 const SEND = 228; // the return key, on the beat: bar 2, beat 1.5
-const HOLD_UNTIL = SEND; // the question sits there long enough to be read
+const ANSWER = 276; // and the agent answers the only way it can
 
 export const ColdOpen: React.FC = () => {
   const frame = useCurrentFrame();
@@ -44,7 +45,14 @@ export const ColdOpen: React.FC = () => {
   // pressing return: the line flashes, the prompt locks, a fresh caret drops
   const sendFlash = sent ? Math.max(0, 1 - (frame - SEND) / 10) : 0;
 
-  const swell = interpolate(frame, [SEND, 288], [0, 1], {
+  const answered = frame >= ANSWER;
+  const answerIn = interpolate(frame, [ANSWER, ANSWER + 14], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+    easing: appEase,
+  });
+
+  const swell = interpolate(frame, [ANSWER + 40, 384], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
@@ -98,8 +106,25 @@ export const ColdOpen: React.FC = () => {
             />
           )}
         </div>
+        {/* the answer: the repo, which is the actual answer to the question */}
+        {answered && (
+          <div
+            style={{
+              marginTop: 20,
+              fontFamily: font.mono,
+              fontSize: 30,
+              letterSpacing: 0.5,
+              color: c.primary,
+              opacity: answerIn,
+              transform: `translateY(${(1 - answerIn) * 8}px)`,
+            }}
+          >
+            github.com/martinbon39/agora
+          </div>
+        )}
+
         {/* the next prompt, waiting, the way a shell does after you hit return */}
-        {sent && (
+        {sent && answered && (
           <div
             style={{
               marginTop: 16,

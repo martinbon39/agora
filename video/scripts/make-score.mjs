@@ -25,7 +25,7 @@ const FPS = 60;
 const SPB = (60 / BPM) * SR; // samples per beat = 17640
 const BEATS_PER_BAR = 4;
 const SPBAR = SPB * BEATS_PER_BAR;
-const TOTAL_BARS = 46;
+const TOTAL_BARS = 47;
 const N = Math.round(SPBAR * TOTAL_BARS); // 3,245,760 samples ≈ 73.6s
 
 const barAt = (bar, beat = 0) => Math.round(bar * SPBAR + beat * SPB);
@@ -44,18 +44,18 @@ const barAt = (bar, beat = 0) => Math.round(bar * SPBAR + beat * SPB);
 // argument before the climax.
 const MARKS = {
   coldOpen: 0,
-  build: 3,
-  machineGun: 6,
-  silence1: 9.75, // last beat of bar 9 — the hole before the drop
-  drop: 10,
-  actCanvas: 12,
-  actMultiplayer: 16,
-  actAgentTalk: 25,
-  actHarnesses: 29,
-  actLaptop: 32,
-  climax: 36,
-  silence2: 40.75,
-  lockup: 41,
+  build: 4,
+  machineGun: 7,
+  silence1: 10.75, // last beat of bar 10 — the hole before the drop
+  drop: 11,
+  actCanvas: 13,
+  actMultiplayer: 17,
+  actAgentTalk: 26,
+  actHarnesses: 30,
+  actLaptop: 33,
+  climax: 37,
+  silence2: 41.75,
+  lockup: 42,
   end: TOTAL_BARS,
 };
 

@@ -58,7 +58,7 @@ export const LogoDrop: React.FC = () => {
               position: 'absolute',
               inset: -30,
               borderRadius: '50%',
-              border: `2px solid ${c.primary}`,
+              border: '2px solid #ffffff',
               transform: `scale(${ring})`,
               opacity: ringOpacity,
             }}

@@ -277,9 +277,9 @@ export const MachineGun: React.FC = () => {
             style={{
               width: interpolate(t, [0, BEAT], [900, 40]),
               height: 2,
-              background: c.primary,
+              background: '#ffffff',
               opacity: interpolate(t, [0, BEAT - 4, BEAT], [0.9, 0.5, 0]),
-              boxShadow: `0 0 40px ${c.primary}`,
+              boxShadow: '0 0 40px rgba(255,255,255,0.85)',
             }}
           />
         </AbsoluteFill>

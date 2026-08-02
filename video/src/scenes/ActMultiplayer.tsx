@@ -38,7 +38,7 @@ import {
 // more: the button IS the explanation.
 const INVITE_AT = BEAT * 2; // 48, the press
 const HUMANS = BAR; // 96, the room appears and everyone arrives at once
-const CANVAS_ACT = BAR * 2 + BEAT * 2; // 240, somebody puts something on the canvas
+const CANVAS_ACT = BAR * 2 + BEAT * 2; // 240, and the camera is already settled on it
 const TAKEOVER = BAR * 4 + BEAT; // 408, and then takes a keyboard that is not theirs
 const SECOND = BAR * 6; // 576, and a second person does the same, elsewhere
 
@@ -49,8 +49,14 @@ const SECOND = BAR * 6; // 576, and a second person does the same, elsewhere
 type Shot = { at: number; x: number; y: number; s: number };
 const CAMERA: Shot[] = [
   { at: 0, x: 960, y: 540, s: 1 },
-  { at: BAR, x: 960, y: 560, s: 0.94 }, // the room arrives, take it all in
-  { at: BAR * 2 + BEAT * 2, x: 1430, y: 690, s: 1.12 }, // a note goes on the canvas
+  { at: BEAT * 2, x: 960, y: 516, s: 1.05 }, // a lean in on the press
+  { at: BAR, x: 960, y: 560, s: 0.92 }, // the room arrives, take it all in
+  { at: BAR + BEAT * 2, x: 1060, y: 545, s: 0.98 }, // drift, so it is never parked
+  // Arrive at the note BEFORE it is dragged, and then HOLD. The camera used to
+  // move at the same moment as the note, which cancelled it out: the note looked
+  // pinned to the frame and the drag was invisible.
+  { at: BAR * 2, x: 1420, y: 650, s: 1.1 },
+  { at: BAR * 3 + BEAT * 2, x: 1420, y: 650, s: 1.1 },
   { at: BAR * 4 + BEAT, x: 1450, y: 420, s: 1.18 }, // martin takes athena's keyboard
   { at: BAR * 6, x: 400, y: 720, s: 1.18 }, // lea takes hypnos'
   { at: BAR * 7 + BEAT * 2, x: 960, y: 560, s: 0.84 }, // and back out on everyone
@@ -113,20 +119,25 @@ export const ActMultiplayer: React.FC = () => {
   const takeoverPunch = takenOver ? Math.max(0, 1 - (frame - TAKEOVER - 16) / 16) : 0;
 
   // sam pulls a note onto the canvas: it flies in under the cursor and settles
-  const noteIn = sp(frame, CANVAS_ACT, 'glide');
-  const noteX = interpolate(noteIn, [0, 1], [1560, 1330]);
-  const noteY = interpolate(noteIn, [0, 1], [900, 632]);
+  // the note is carried across the canvas, slowly enough to be read as carried
+  const noteIn = rise(frame, CANVAS_ACT, 46);
+  const noteX = interpolate(noteIn, [0, 1], [1620, 1300]);
+  const noteY = interpolate(noteIn, [0, 1], [880, 600]);
 
-  const pressT = interpolate(frame, [INVITE_AT, INVITE_AT + 6], [0, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
+  // The press. The depress LANDS on INVITE_AT rather than starting there, like
+  // every other move in the film, holds for four frames and comes back up.
+  const press = interpolate(
+    frame,
+    [INVITE_AT - 5, INVITE_AT, INVITE_AT + 4, INVITE_AT + 14],
+    [0, 1, 1, 0],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: expoOut },
+  );
   const pressed = frame >= INVITE_AT;
-  const ringT = interpolate(frame, [INVITE_AT, INVITE_AT + 26], [0, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-    easing: expoOut,
-  });
+  // and what the press produces: a link that did not exist a second ago, minted
+  // under the button and copied. That is the whole feature in one gesture.
+  const reveal = rise(frame, INVITE_AT + 2, 18);
+  const copied = rise(frame, INVITE_AT + 16, 8);
+  const panelIn = rise(frame, 8, 14);
 
   // Nothing exists before the button is pressed. The room is what the press
   // brings into being, so it scales up from the button's own position.
@@ -152,7 +163,7 @@ export const ActMultiplayer: React.FC = () => {
     <Stage>
       <CanvasBackground opacity={0.75} offsetX={frame * 0.3} offsetY={-frame * 0.1} />
 
-      <SectionLabel title="Invite anyone." then="Collaborate live." until={BAR * 3} y={78} />
+      <SectionLabel title="Invite anyone." then="Collaborate live." until={BAR * 4 + BEAT * 2} y={78} />
 
       {/* the invite button, pressed on the beat before the room fills */}
       {frame < HUMANS + BEAT && (
@@ -342,11 +353,15 @@ export const ActMultiplayer: React.FC = () => {
           prev = leg;
         }
         const drift = Math.max(0, t - 40);
+        // whoever is carrying the note is ON the note, not near it
+        const carrying = peer.name === PEERS[2].name && frame >= CANVAS_ACT - 8;
+        const cx = carrying ? noteX + 118 : x + Math.sin(drift / 29) * 20;
+        const cy = carrying ? noteY + 16 : y + Math.cos(drift / 37) * 14;
         return (
           <Cursor
             key={peer.name}
-            x={x + Math.sin(drift / 29) * 20}
-            y={y + Math.cos(drift / 37) * 14}
+            x={cx}
+            y={cy}
             name={peer.name}
             color={peer.color}
             opacity={interpolate(t, [0, 8], [0, 1], { extrapolateRight: 'clamp' })}
@@ -394,8 +409,8 @@ export const ActMultiplayer: React.FC = () => {
 
 
       <Caption from={SECOND + 22} x={120} y={900} size={26} width={520}>
-        <span style={{ color: c.foreground }}>Three people and three agents</span>, one
-        workspace, at the same time. Nobody waiting for a turn.
+        <span style={{ color: c.foreground }}>Many people, many agents. One workspace.</span>{' '}
+        All at once, nobody waiting for a turn.
       </Caption>
     </Stage>
   );
