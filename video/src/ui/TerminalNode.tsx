@@ -27,6 +27,8 @@ export const TerminalNode: React.FC<{
   selected?: boolean;
   glowColor?: string;
   glowStrength?: number;
+  /** Drop the soft shadow entirely. For GIF loops: a 34px blur is palette poison. */
+  noShadow?: boolean;
   children: React.ReactNode;
 }> = ({
   name,
@@ -40,12 +42,15 @@ export const TerminalNode: React.FC<{
   selected,
   glowColor,
   glowStrength = 0,
+  noShadow,
   children,
 }) => {
   const glow = glowColor && glowStrength > 0;
-  const boxShadow = glow
-    ? `0 0 0 ${2.5 * glowStrength}px ${glowColor}, 0 0 ${22 * glowStrength}px ${glowColor}88, ${node.shadow}`
-    : node.shadow;
+  const boxShadow = noShadow
+    ? 'none'
+    : glow
+      ? `0 0 0 ${2.5 * glowStrength}px ${glowColor}, 0 0 ${22 * glowStrength}px ${glowColor}88, ${node.shadow}`
+      : node.shadow;
 
   const pill = stateLabel ? (PILL[state] ?? PILL.idle) : undefined;
 

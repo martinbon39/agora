@@ -38,9 +38,9 @@ import {
 // more: the button IS the explanation.
 const INVITE_AT = BEAT * 2; // 48, the press
 const HUMANS = BAR; // 96, the room appears and everyone arrives at once
-const CANVAS_ACT = BAR * 3; // 288, somebody puts something on the canvas
-const TAKEOVER = BAR * 5; // 480, and then takes a keyboard that is not theirs
-const SECOND = BAR * 7; // 672, and a second person does the same, elsewhere
+const CANVAS_ACT = BAR * 2 + BEAT * 2; // 240, somebody puts something on the canvas
+const TAKEOVER = BAR * 4 + BEAT; // 408, and then takes a keyboard that is not theirs
+const SECOND = BAR * 6; // 576, and a second person does the same, elsewhere
 
 // The camera. This act is the heart of the product, so the frame is not allowed
 // to sit still and watch: it goes where the collaboration goes. Each keyframe is
@@ -50,10 +50,10 @@ type Shot = { at: number; x: number; y: number; s: number };
 const CAMERA: Shot[] = [
   { at: 0, x: 960, y: 540, s: 1 },
   { at: BAR, x: 960, y: 560, s: 0.94 }, // the room arrives, take it all in
-  { at: BAR * 3, x: 1430, y: 690, s: 1.12 }, // somebody puts a note on the canvas
-  { at: BAR * 5, x: 1450, y: 420, s: 1.18 }, // martin takes athena's keyboard
-  { at: BAR * 7, x: 400, y: 720, s: 1.18 }, // lea takes hypnos'
-  { at: BAR * 8 + BEAT * 2, x: 960, y: 560, s: 0.86 }, // and back out on everyone
+  { at: BAR * 2 + BEAT * 2, x: 1430, y: 690, s: 1.12 }, // a note goes on the canvas
+  { at: BAR * 4 + BEAT, x: 1450, y: 420, s: 1.18 }, // martin takes athena's keyboard
+  { at: BAR * 6, x: 400, y: 720, s: 1.18 }, // lea takes hypnos'
+  { at: BAR * 7 + BEAT * 2, x: 960, y: 560, s: 0.84 }, // and back out on everyone
 ];
 
 type Leg = { at: number; x: number; y: number };
@@ -152,7 +152,7 @@ export const ActMultiplayer: React.FC = () => {
     <Stage>
       <CanvasBackground opacity={0.75} offsetX={frame * 0.3} offsetY={-frame * 0.1} />
 
-      <SectionLabel title="Invite anyone." then="Collaborate live." until={BAR * 2} y={78} />
+      <SectionLabel title="Invite anyone." then="Collaborate live." until={BAR * 3} y={78} />
 
       {/* the invite button, pressed on the beat before the room fills */}
       {frame < HUMANS + BEAT && (

@@ -17,7 +17,9 @@ export const StickyNode: React.FC<{
   text: string;
   color?: 'amber' | 'rose' | 'sky' | 'lime';
   author?: string;
-}> = ({ width, height, text, color = 'amber', author }) => {
+  /** Drop the soft shadow entirely. For GIF loops: a 28px blur is palette poison. */
+  noShadow?: boolean;
+}> = ({ width, height, text, color = 'amber', author, noShadow }) => {
   const palette = STICKY_COLORS[color];
   // the app sizes the note with clamp(13px, 5.5cqw, 42px); resolve it here
   const bodySize = Math.min(42, Math.max(13, width * 0.055));
@@ -34,7 +36,7 @@ export const StickyNode: React.FC<{
         borderRadius: 8,
         background: palette.bg,
         color: palette.ink,
-        boxShadow: '0 10px 28px rgb(0 0 0 / 40%)',
+        boxShadow: noShadow ? 'none' : '0 10px 28px rgb(0 0 0 / 40%)',
         fontFamily: font.sans,
       }}
     >

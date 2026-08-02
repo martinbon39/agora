@@ -11,12 +11,17 @@ import { c, font, term } from '../brand/tokens';
 import { SIXTEENTH } from '../lib/beats';
 import { Stage } from '../lib/Stage';
 
-const PROMPT = 'orbit@server ~ %';
+// Just the caret the product's own sessions use. It used to read
+// "orbit@server ~ %", which names a machine nobody has heard of and says
+// nothing: the shot is a person asking an agent a question, not a shell demo.
+const PROMPT = '›';
 const TYPED = 'how do i win this hackathon';
 
 // keystrokes land on 16ths from frame 96 — the same frames as the ticks in the score
 const TYPE_FROM = 96;
-const TYPE_TO = 186; // one keystroke tick per 16th across the bar
+const TYPE_TO = 174; // one keystroke tick per 16th across the bar
+const SEND = 228; // the return key, on the beat: bar 2, beat 1.5
+const HOLD_UNTIL = SEND; // the question sits there long enough to be read
 
 export const ColdOpen: React.FC = () => {
   const frame = useCurrentFrame();
@@ -33,9 +38,13 @@ export const ColdOpen: React.FC = () => {
   // the app's own caret: a 1.1s opacity loop between 1 and 0.15
   const blink = interpolate(frame % 66, [0, 33, 34, 66], [1, 1, 0.15, 0.15]);
 
-  // once the line is typed, the screen starts to breathe — the reversed swell
-  // in the score is already pulling toward the cut
-  const swell = interpolate(frame, [150, 192], [0, 1], {
+  // The question holds for most of a bar before it is sent. It used to be typed
+  // and cut six frames later, which is not long enough to read a sentence.
+  const sent = frame >= SEND;
+  // pressing return: the line flashes, the prompt locks, a fresh caret drops
+  const sendFlash = sent ? Math.max(0, 1 - (frame - SEND) / 10) : 0;
+
+  const swell = interpolate(frame, [SEND, 288], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
@@ -49,6 +58,7 @@ export const ColdOpen: React.FC = () => {
           transform: `scale(${1 + swell * 0.06})`,
         }}
       >
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
         <div
           style={{
             fontFamily: font.mono,
@@ -56,23 +66,66 @@ export const ColdOpen: React.FC = () => {
             letterSpacing: 0.5,
             display: 'flex',
             alignItems: 'center',
+            transform: `translateY(${sent ? -interpolate(frame, [SEND, SEND + 12], [0, 22], {
+              extrapolateLeft: 'clamp',
+              extrapolateRight: 'clamp',
+            }) : 0}px)`,
             opacity: interpolate(frame, [0, 20], [0, 1], {
               extrapolateRight: 'clamp',
             }),
           }}
         >
           <span style={{ color: term.brightBlack }}>{PROMPT}&nbsp;</span>
-          <span style={{ color: term.foreground }}>{text}</span>
           <span
             style={{
-              display: 'inline-block',
-              width: 15,
-              height: 34,
-              marginLeft: 3,
-              background: term.cursor,
-              opacity: frame >= TYPE_FROM && typed < TYPED.length ? 1 : blink,
+              color: term.foreground,
+              // the line lights up for a few frames as it is submitted
+              textShadow: sendFlash > 0 ? `0 0 ${18 * sendFlash}px ${term.cursor}` : undefined,
             }}
-          />
+          >
+            {text}
+          </span>
+          {!sent && (
+            <span
+              style={{
+                display: 'inline-block',
+                width: 15,
+                height: 34,
+                marginLeft: 3,
+                background: term.cursor,
+                opacity: frame >= TYPE_FROM && typed < TYPED.length ? 1 : blink,
+              }}
+            />
+          )}
+        </div>
+        {/* the next prompt, waiting, the way a shell does after you hit return */}
+        {sent && (
+          <div
+            style={{
+              marginTop: 16,
+              fontFamily: font.mono,
+              fontSize: 30,
+              letterSpacing: 0.5,
+              display: 'flex',
+              alignItems: 'center',
+              opacity: interpolate(frame, [SEND + 6, SEND + 18], [0, 1], {
+                extrapolateLeft: 'clamp',
+                extrapolateRight: 'clamp',
+              }),
+            }}
+          >
+            <span style={{ color: term.brightBlack }}>{PROMPT}&nbsp;</span>
+            <span
+              style={{
+                display: 'inline-block',
+                width: 15,
+                height: 34,
+                background: term.cursor,
+                opacity: blink,
+              }}
+            />
+          </div>
+        )}
         </div>
       </AbsoluteFill>
 

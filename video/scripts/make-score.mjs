@@ -25,7 +25,7 @@ const FPS = 60;
 const SPB = (60 / BPM) * SR; // samples per beat = 17640
 const BEATS_PER_BAR = 4;
 const SPBAR = SPB * BEATS_PER_BAR;
-const TOTAL_BARS = 45;
+const TOTAL_BARS = 46;
 const N = Math.round(SPBAR * TOTAL_BARS); // 3,245,760 samples ≈ 73.6s
 
 const barAt = (bar, beat = 0) => Math.round(bar * SPBAR + beat * SPB);
@@ -44,18 +44,18 @@ const barAt = (bar, beat = 0) => Math.round(bar * SPBAR + beat * SPB);
 // argument before the climax.
 const MARKS = {
   coldOpen: 0,
-  build: 2,
-  machineGun: 5,
-  silence1: 8.75, // last beat of bar 8 — the hole before the drop
-  drop: 9,
-  actCanvas: 11,
-  actMultiplayer: 15,
-  actAgentTalk: 24,
-  actHarnesses: 28,
-  actLaptop: 31,
-  climax: 35,
-  silence2: 39.75,
-  lockup: 40,
+  build: 3,
+  machineGun: 6,
+  silence1: 9.75, // last beat of bar 9 — the hole before the drop
+  drop: 10,
+  actCanvas: 12,
+  actMultiplayer: 16,
+  actAgentTalk: 25,
+  actHarnesses: 29,
+  actLaptop: 32,
+  climax: 36,
+  silence2: 40.75,
+  lockup: 41,
   end: TOTAL_BARS,
 };
 
@@ -361,7 +361,11 @@ for (let bar = 0; bar < TOTAL_BARS; bar++) {
       // keystrokes land on 16ths — the terminal is typing in time
       // one tick per 16th across the whole bar: the cold open types a full
       // question now, not a two-word fragment
-      for (let k = 0; k < 16; k++) keyTick(b0 + Math.round(k * SPB * 0.25), 1);
+      for (let k = 0; k < 14; k++) keyTick(b0 + Math.round(k * SPB * 0.25), 1);
+    }
+    if (bar === 2) {
+      // the return key: one heavier tick, then the swell into the cut
+      keyTick(b0 + Math.round(SPB * 1.5), 2.2);
       reverseSwell(b0 + Math.round(SPB * 2), SPB * 2, 0.55);
     }
     continue;

@@ -78,7 +78,9 @@ export const ChatNode: React.FC<{
   messages: ChatMessage[];
   visibleCount?: number;
   title?: string;
-}> = ({ width, height, messages, visibleCount, title = 'Project board' }) => {
+  /** Drop the soft shadow entirely. For GIF loops: a 34px blur is palette poison. */
+  noShadow?: boolean;
+}> = ({ width, height, messages, visibleCount, title = 'Project board', noShadow }) => {
   const shown = visibleCount === undefined ? messages : messages.slice(0, visibleCount);
   // the app sizes the body with clamp(12px, 3.2cqw, 17px); resolve it here
   const bodySize = Math.min(17, Math.max(12, width * 0.032));
@@ -95,7 +97,7 @@ export const ChatNode: React.FC<{
         borderRadius: node.radius,
         border: node.border,
         background: c.card,
-        boxShadow: node.shadow,
+        boxShadow: noShadow ? 'none' : node.shadow,
         fontFamily: font.sans,
       }}
     >
