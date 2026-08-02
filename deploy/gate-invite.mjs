@@ -85,23 +85,29 @@ check("the owner invites someone into one project", r.statusCode === 200, `got $
 const link = r.json().link;
 check(
   "THE POINT: inviting hands back a sign-in link, with no OAuth configured",
-  typeof link === "string" && /\/api\/auth\/invite\/[\w-]{20,}$/.test(link),
+  typeof link === "string" && /\/#\/join\/[\w-]{20,}$/.test(link),
   link ? String(link) : "no link in the response — the guest has no way in"
 );
+// The server logs req.url for every request (Fastify logger: true), and so
+// does any reverse proxy in front of it. A token in the path would be written
+// to disk, in the clear, on every redemption. The fragment never leaves the
+// browser — the same trick the enrolment link already uses.
+check(
+  "REFUSED: the token rides in the fragment, so it is never in a URL a server sees",
+  link.includes("/#/") && new URL(link).pathname === "/" && !new URL(link).search,
+  `path=${new URL(link).pathname} search=${new URL(link).search}`
+);
+const token = link.split("/").pop();
 check(
   "the link is never listed afterwards, only its existence",
-  r.json().invites[0].hasLink === true && !JSON.stringify(r.json().invites).includes(link.split("/").pop()),
+  r.json().invites[0].hasLink === true && !JSON.stringify(r.json().invites).includes(token),
   "only the hash is stored, so a leaked database hands out no invitations"
 );
 
 // --- the guest opens it -----------------------------------------------------
-const tokenPath = new URL(link).pathname;
-r = await app.inject({ method: "GET", url: tokenPath });
-check(
-  "opening the link signs the guest in and lands them in the app",
-  r.statusCode === 302 && r.headers.location === "/",
-  `got ${r.statusCode} -> ${r.headers.location}`
-);
+const redeem = (t) => app.inject({ method: "POST", url: "/api/auth/invite", payload: { token: t } });
+r = await redeem(token);
+check("redeeming the link signs the guest in", r.statusCode === 200, `got ${r.statusCode}`);
 const guest = r.cookies.find((c) => c.name === "agora_session")?.value;
 check("…and it sets a real session cookie", !!guest);
 
@@ -140,42 +146,44 @@ check(
 r = await as(owner, { method: "POST", url: "/api/invites/guest%40example.com/link" });
 const rotated = r.json().link;
 check("the owner can mint a fresh link", r.statusCode === 200 && !!rotated && rotated !== link);
-r = await app.inject({ method: "GET", url: tokenPath });
+const rotatedToken = rotated.split("/").pop();
+r = await redeem(token);
 check(
   "REFUSED: and the previous link stops working the moment it is replaced",
-  r.headers.location === "/#denied",
-  `got ${r.statusCode} -> ${r.headers.location}`
+  r.statusCode === 403,
+  `got ${r.statusCode}`
 );
-r = await app.inject({ method: "GET", url: new URL(rotated).pathname });
-check("…while the new one works", r.headers.location === "/", `-> ${r.headers.location}`);
+r = await redeem(rotatedToken);
+check("…while the new one works", r.statusCode === 200, `got ${r.statusCode}`);
 
 // --- revocation kills the link, not just the sessions ----------------------
 // The sessions were always cut. The link is a bearer credential that outlives
 // them, so revoking has to destroy it too or "revoked" means nothing.
 r = await as(owner, { method: "DELETE", url: "/api/invites/guest%40example.com" });
 check("the owner revokes the invite", r.statusCode === 200);
-r = await app.inject({ method: "GET", url: new URL(rotated).pathname });
+r = await redeem(rotatedToken);
 check(
   "THE POINT: a revoked invite's link is dead — it cannot be redeemed again",
-  r.headers.location === "/#denied",
-  `got ${r.statusCode} -> ${r.headers.location}`
+  r.statusCode === 403,
+  `got ${r.statusCode}`
 );
 r = await as(guest, { method: "GET", url: "/api/projects" });
 check("…and the session it already issued is refused", r.statusCode === 401, `got ${r.statusCode}`);
 
 // --- garbage --------------------------------------------------------------
-for (const [label, token] of [
+for (const [label, bad] of [
   ["nonsense", "not-a-token"],
-  ["empty", " "],
-  ["a path traversal", "..%2F..%2Fetc"],
+  ["empty", ""],
+  ["whitespace", " "],
+  ["a path traversal", "../../etc"],
+  ["the literal string null", null],
+  ["an object", { toString: () => "x" }],
 ]) {
-  r = await app.inject({ method: "GET", url: `/api/auth/invite/${token}` });
-  check(
-    `REFUSED: ${label} redeems nothing`,
-    r.headers.location === "/#denied" || r.statusCode === 404,
-    `got ${r.statusCode} -> ${r.headers.location}`
-  );
+  r = await redeem(bad);
+  check(`REFUSED: ${label} redeems nothing`, r.statusCode === 403, `got ${r.statusCode}`);
 }
+r = await app.inject({ method: "POST", url: "/api/auth/invite" });
+check("REFUSED: and so does no body at all", r.statusCode === 403 || r.statusCode === 400, `got ${r.statusCode}`);
 
 // --- re-inviting a revoked guest gives a working link again ---------------
 r = await as(owner, {
@@ -183,10 +191,9 @@ r = await as(owner, {
   url: "/api/invites",
   payload: { email: "guest@example.com", project: BETA },
 });
-const reLink = r.json().link;
-r = await app.inject({ method: "GET", url: new URL(reLink).pathname });
+r = await redeem(r.json().link.split("/").pop());
 const back = r.cookies.find((c) => c.name === "agora_session")?.value;
-check("a re-invited guest gets in again", r.headers.location === "/" && !!back);
+check("a re-invited guest gets in again", r.statusCode === 200 && !!back);
 r = await as(back, { method: "GET", url: "/api/projects" });
 check(
   "…scoped to the NEW project, not the one they were invited to before",

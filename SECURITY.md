@@ -68,8 +68,10 @@ local instance is easy and gives you a much better repro.
   the token is stored, so it is readable exactly once and a leaked database
   hands out no invitations; revoking clears the token in the same statement
   that sets `revoked_at`; and re-minting invalidates the previous link. A link
-  redeems into a guest session and never an owner one. It does not expire on
-  first use — the person you invited will open it on a second device — so
+  redeems into a guest session and never an owner one. The token travels in the
+  URL **fragment** and is redeemed by a POST, so it never appears in agora's
+  request log, a reverse proxy's access log, or a `Referer`. It does not expire
+  on first use — the person you invited will open it on a second device — so
   anyone it is forwarded to gets the same access, exactly like any
   "anyone with the link" URL.
 - **Guest scope is read live** from the invite on every request, so re-scoping

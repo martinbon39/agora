@@ -25,6 +25,14 @@ function registerTokenFromHash(): string | null {
   return m?.[1] ?? null;
 }
 
+/** An invitation someone was sent. In the fragment, like the enrolment token
+ *  above and for the same reason: a fragment never reaches a server, so the
+ *  token stays out of every access log between here and agora. */
+function inviteTokenFromHash(): string | null {
+  const m = location.hash.match(/^#\/join\/([\w-]+)/);
+  return m?.[1] ?? null;
+}
+
 export function AuthGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<"checking" | "login" | "ok">("checking");
   const [enrolled, setEnrolled] = useState(true);
@@ -34,26 +42,41 @@ export function AuthGate({ children }: { children: ReactNode }) {
   // the Google callback lands non-invited accounts here
   const [denied, setDenied] = useState(location.hash === "#denied");
   const enrollToken = registerTokenFromHash();
+  const inviteToken = inviteTokenFromHash();
   // An anonymous visitor gets the landing page; the sign-in card is one click
   // away. An enrolment link or a denied callback skips it — both are people who
   // already know what this is and are mid-flow.
   const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
-    api
-      .authMe()
-      .then(({ authed, enrolled, google, user }) => {
-        setEnrolled(enrolled);
-        setGoogle(google ?? false);
-        setUser(user ?? null);
-        if (authed && location.hash === "#denied") {
-          // stale hash from a previous attempt — signed in now
-          history.replaceState(null, "", "/");
-          setDenied(false);
+    const run = async () => {
+      let me = await api.authMe();
+      // Redeem an invitation before rendering, so someone arriving on their
+      // link is signed in rather than shown a login screen they have no way to
+      // satisfy. Only when nobody is signed in yet: redeeming over a live
+      // session would REPLACE it, and the first person to click an invite link
+      // is usually the owner checking that it works — who would land as a guest
+      // of their own cockpit, without the panel that issued the link.
+      if (inviteToken && !me.authed) {
+        try {
+          await postJson("/api/auth/invite", { token: inviteToken });
+          me = await api.authMe();
+        } catch {
+          setDenied(true); // dead or revoked link — the "not invited" screen
         }
-        setStatus(authed ? "ok" : "login");
-      })
-      .catch(() => setStatus("login"));
+      }
+      if (inviteToken) history.replaceState(null, "", "/");
+      setEnrolled(me.enrolled);
+      setGoogle(me.google ?? false);
+      setUser(me.user ?? null);
+      if (me.authed && location.hash === "#denied") {
+        // stale hash from a previous attempt — signed in now
+        history.replaceState(null, "", "/");
+        setDenied(false);
+      }
+      setStatus(me.authed ? "ok" : "login");
+    };
+    run().catch(() => setStatus("login"));
   }, []);
 
   const login = useCallback(async () => {
@@ -97,8 +120,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
           <div>
             <h1 className="text-lg font-semibold tracking-tight">Not invited yet</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              This Google account is not on the invite list. Ask the owner to add you,
-              then try again.
+              This invitation is not valid. A link stops working once it has been
+              replaced or revoked, and an account has to be on the invite list.
+              Ask whoever invited you for a new link.
             </p>
           </div>
           <Button

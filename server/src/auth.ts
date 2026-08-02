@@ -237,9 +237,14 @@ export const invites = {
     return token;
   },
 
-  /** The live invite a link token belongs to, if it is still good. */
+  /** The live invite a link token belongs to, if it is still good.
+   *
+   *  The type says string; the caller's is parsed from an unauthenticated JSON
+   *  body, so it can be an object, a number or null. createHash().update()
+   *  throws on those, and the throw surfaced as a 500 — an error page handed to
+   *  anyone who posts `{"token":{}}`. This is the boundary, so it checks here. */
   byToken(token: string): { email: string; project: string | null } | undefined {
-    if (!token) return undefined;
+    if (typeof token !== "string" || !token) return undefined;
     return db
       .prepare(
         `SELECT email, project FROM invites WHERE token_hash = ? AND revoked_at IS NULL`
@@ -545,22 +550,30 @@ export async function authRoutes(app: FastifyInstance) {
    * invite list was an allowlist waiting for a sign-in method that did not
    * exist yet. A link needs nothing configured.
    *
-   * The link is a bearer credential and is treated as one: only its hash is
+   * The token arrives in a POST body, and the link that carries it puts it in a
+   * URL FRAGMENT (`/#/join/<token>`), exactly as enrolment already does. A
+   * fragment is never sent to a server, so the token stays out of this app's
+   * request log — `logger: true` records req.url for every request — out of any
+   * reverse proxy's access log, and out of the Referer of whatever the page
+   * loads next. A GET route with the token in the path would have written a
+   * working credential to disk on every redemption.
+   *
+   * It is a bearer credential otherwise and is treated as one: only its hash is
    * stored, revoking destroys it, and re-minting rotates it. It stays usable
    * until then rather than burning on first use, because the person you invited
    * opens it on their laptop and then on their phone, and a one-shot link makes
    * that a support request. Sharing the link shares the access — which is the
    * same bargain as any "anyone with the link" URL, and is what the UI says.
    */
-  app.get<{ Params: { token: string } }>("/api/auth/invite/:token", async (req, reply) => {
-    const invite = invites.byToken(req.params.token ?? "");
-    if (!invite) return reply.redirect("/#denied");
+  app.post<{ Body: { token?: string } }>("/api/auth/invite", async (req, reply) => {
+    const invite = invites.byToken(req.body?.token ?? "");
+    if (!invite) return reply.code(403).send({ error: "invalid or revoked invitation" });
     issueSession(reply, {
       email: invite.email,
       name: invite.email.split("@")[0] || "guest",
       role: "guest",
     });
-    reply.redirect("/");
+    return { ok: true };
   });
 
   app.post("/api/auth/logout", async (req, reply) => {

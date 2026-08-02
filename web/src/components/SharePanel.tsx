@@ -32,11 +32,17 @@ export function SharePanel({
   // stored. So it is held here until the panel closes, and never re-fetched.
   const [link, setLink] = useState<{ email: string; url: string } | null>(null);
 
-  const copy = (url: string, note: string) =>
-    navigator.clipboard
-      ?.writeText(url)
+  // navigator.clipboard is undefined outside a secure context — agora reached
+  // over plain HTTP on a LAN address, which is exactly how you demo this to
+  // someone sitting next to you. Say so instead of failing silently; the link
+  // is on screen either way.
+  const copy = (url: string, note: string) => {
+    const wrote = navigator.clipboard?.writeText(url);
+    if (!wrote) return toast.info("Invite link ready — copy it below", { description: note });
+    wrote
       .then(() => toast.success("Invite link copied", { description: note }))
       .catch(() => toast.info("Copy the link below", { description: note }));
+  };
 
   const load = () =>
     api

@@ -339,8 +339,11 @@ check("tmux reports both attached clients", attachedBefore === 2, `${attachedBef
 
 console.log("\n  … black-holing the connection: no FIN, no RST, just silence …\n");
 blackhole = true;
-// Both heartbeats declare death at 40s. Wait past that, then ask both ends.
-await sleep(46_000);
+// Worst case the server terminates at ~45s (it checks every 15s for 40s of
+// silence) and the client gives up at ~40s (it probes 10s after the last frame
+// and allows the probe 25s). Wait past both, with margin — timers run late on
+// a loaded machine, and a flaky gate is worse than a slow one.
+await sleep(52_000);
 
 check(
   "THE POINT: the server reclaims the pty and tmux client of a peer gone silent",

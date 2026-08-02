@@ -10,11 +10,20 @@
  * then sits on a dead socket indefinitely.
  *
  * So the client probes too, with an application-level message the server
- * answers visibly, and gives up when the answers stop.
+ * answers visibly, and gives up when a probe goes unanswered.
+ *
+ * Unanswered PROBE, not "quiet for a while" — the distinction is the whole
+ * design. Browsers clamp setInterval to roughly once a minute in a background
+ * tab, so a timer measuring silence against a fixed deadline fires late and
+ * concludes that a perfectly healthy idle session is dead. Every backgrounded
+ * tab would then reconnect on a loop, dropping presence each time. Measuring
+ * from the moment a probe was actually sent is immune to that: a late tick
+ * sends a late probe, the answer clears it, and nothing is declared dead. A
+ * black hole is still caught, just as late as the browser is running us.
  */
-const PING_MS = 15_000;
-/** Silence beyond this is a dead connection. Matches DEAD_MS on the server. */
-const DEAD_MS = 40_000;
+const PING_MS = 10_000;
+/** How long an unanswered probe may stand before the connection is dead. */
+const DEAD_MS = 25_000;
 
 export interface KeepAlive {
   /** Call on every frame received — any traffic is proof of life. */
@@ -25,18 +34,24 @@ export interface KeepAlive {
 
 /**
  * @param ping   the probe to send; the server answers it on the same socket
- * @param onDead called once when the peer stops answering. The socket is
- *               already closed by then, but callers must reconnect from HERE
- *               rather than waiting for `onclose`: closing a black-holed socket
- *               starts a handshake with a peer that will never reply, and the
- *               browser may take minutes to give up on it.
+ * @param onDead called once when a probe goes unanswered. The socket is closed
+ *               by then, but callers must reconnect from HERE rather than
+ *               waiting for `onclose`: closing a black-holed socket starts a
+ *               handshake with a peer that will never reply, and the browser
+ *               may take minutes to give up on it.
  */
 export function keepAlive(ws: WebSocket, ping: object, onDead: () => void): KeepAlive {
-  let last = Date.now();
+  let lastSeen = Date.now();
+  /** When the outstanding probe was sent, or null if none is outstanding. */
+  let probedAt: number | null = null;
   let stopped = false;
+
   const timer = setInterval(() => {
     if (stopped) return;
-    if (Date.now() - last > DEAD_MS) {
+    const now = Date.now();
+
+    if (probedAt !== null) {
+      if (now - probedAt <= DEAD_MS) return; // still within its grace period
       stopped = true;
       clearInterval(timer);
       try {
@@ -47,18 +62,21 @@ export function keepAlive(ws: WebSocket, ping: object, onDead: () => void): Keep
       onDead();
       return;
     }
-    if (ws.readyState === WebSocket.OPEN) {
-      try {
-        ws.send(JSON.stringify(ping));
-      } catch {
-        /* the close/error path will pick it up */
-      }
+
+    if (now - lastSeen < PING_MS) return; // a busy socket needs no probing
+    if (ws.readyState !== WebSocket.OPEN) return;
+    try {
+      ws.send(JSON.stringify(ping));
+      probedAt = now;
+    } catch {
+      /* the close/error path will pick it up */
     }
   }, PING_MS);
 
   return {
     seen() {
-      last = Date.now();
+      lastSeen = Date.now();
+      probedAt = null; // any answer at all clears the outstanding probe
     },
     stop() {
       stopped = true;

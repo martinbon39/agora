@@ -16,9 +16,14 @@ function ownerOnly(req: FastifyRequest, reply: FastifyReply): boolean {
 
 /** Built from the origin the owner is actually browsing, not AGORA_ORIGIN: on
  *  an install answering on several hostnames, a link pinned to the canonical
- *  one lands the guest somewhere the owner never sees. */
+ *  one lands the guest somewhere the owner never sees.
+ *
+ *  The token goes in the FRAGMENT, which browsers never send to a server — so
+ *  it stays out of the request log, out of a reverse proxy's access log and out
+ *  of the next Referer. The SPA reads it back and posts it. Enrolment links are
+ *  built the same way, for the same reason. */
 const inviteLink = (req: FastifyRequest, token: string) =>
-  `${requestOrigin(req)}/api/auth/invite/${token}`;
+  `${requestOrigin(req)}/#/join/${token}`;
 
 export async function inviteRoutes(app: FastifyInstance) {
   app.get("/api/invites", async (req, reply) => {
