@@ -26,6 +26,7 @@ const DELIVER = BAR * 5; // 480, the mention lands
 const HUMANS = BAR * 7; // 672
 const WIDEN = BAR * 9; // 864
 const TAKEOVER = BAR * 11; // 1056, a human walks into someone else's session
+const SECOND_HUMAN = BAR * 13; // 1248, and a second one does the same, elsewhere
 
 const countChars = (lines: TermLine[]) =>
   lines.reduce((n, l) => n + l.spans.reduce((m, s) => m + s.text.length, 0), 0);
@@ -79,6 +80,20 @@ const ATHENA_TAKEOVER: TermLine[] = [
   },
 ];
 
+// hypnos's session once lea steps into it
+const HYPNOS_TAKEN: TermLine[] = [
+  ...HYPNOS_SESSION,
+  { spans: [{ text: '' }] },
+  {
+    spans: [
+      { text: '← ', color: term.brightBlack },
+      { text: 'lea', color: term.green, bold: true },
+      { text: ' joined this session', color: term.brightBlack },
+    ],
+  },
+  { spans: [{ text: '› ', color: term.brightBlack }, { text: 'write the backup step first' }] },
+];
+
 // Each human flies in from off-frame and then moves between the things they are
 // looking at. A presence badge in a node header only means something if the
 // cursor agrees with it, so every badge in this scene has a cursor on it.
@@ -108,7 +123,12 @@ const PEER_ARRIVALS: {
     peer: PEERS[1],
     at: HUMANS + BEAT,
     from: { x: 2040, y: 900 },
-    legs: [{ at: HUMANS + BEAT, x: 1430, y: 505 }],
+    legs: [
+      { at: HUMANS + BEAT, x: 1430, y: 505 },
+      // martin has athena, so lea goes to hypnos. Two humans, two sessions,
+      // neither of which is theirs.
+      { at: SECOND_HUMAN, x: 566, y: 806 },
+    ],
   },
   {
     peer: PEERS[2],
@@ -157,6 +177,7 @@ export const ActMultiplayer: React.FC = () => {
 
   // the takeover: martin's cursor reaches athena's node, then he types in it
   const takenOver = frame >= TAKEOVER + 14;
+  const secondHuman = frame >= SECOND_HUMAN + 14;
   const takeoverTyped = interpolate(
     frame,
     [TAKEOVER + 14, TAKEOVER + 96],
@@ -280,11 +301,18 @@ export const ActMultiplayer: React.FC = () => {
               path="~/projects/checkout"
               width={520}
               height={290}
-              glowColor={PEERS[2].color}
-              glowStrength={rise(frame, WIDEN + BEAT, 20)}
-              viewers={[{ name: PEERS[2].name, color: PEERS[2].color }]}
+              glowColor={secondHuman ? PEERS[1].color : PEERS[2].color}
+              glowStrength={Math.max(rise(frame, WIDEN + BEAT, 20), secondHuman ? 1 : 0)}
+              viewers={[
+                { name: PEERS[2].name, color: PEERS[2].color },
+                ...(secondHuman ? [{ name: PEERS[1].name, color: PEERS[1].color }] : []),
+              ]}
             >
-              <Terminal lines={HYPNOS_SESSION} showCursor fontSize={13} />
+              <Terminal
+                lines={secondHuman ? HYPNOS_TAKEN : HYPNOS_SESSION}
+                showCursor
+                fontSize={13}
+              />
             </TerminalNode>
           </div>
         )}
@@ -374,10 +402,14 @@ export const ActMultiplayer: React.FC = () => {
       <Caption from={HUMANS + BEAT * 3} until={TAKEOVER} x={120} y={886} size={26} width={500}>
         Invite a human too. Live cursors, presence on the terminal someone is watching.
       </Caption>
-      <Caption from={TAKEOVER + 18} x={120} y={886} size={26} width={500}>
+      <Caption from={TAKEOVER + 18} until={SECOND_HUMAN + 18} x={120} y={886} size={26} width={500}>
         And you can walk into someone else&apos;s terminal and{' '}
         <span style={{ color: c.foreground }}>take the keyboard</span>. It is the same
         pty, not a screenshare.
+      </Caption>
+      <Caption from={SECOND_HUMAN + 18} x={120} y={886} size={26} width={520}>
+        <span style={{ color: c.foreground }}>Three people and four agents</span> in one
+        workspace, at the same time, each one able to type into any of it.
       </Caption>
     </Stage>
   );

@@ -19,7 +19,9 @@ type Phrase = { bar: number; words: string[]; accent?: number; size: number };
 const PHRASES: Phrase[] = [
   { bar: 0, words: ['MADE', 'FOR', 'HACKATHONS'], accent: 2, size: 130 },
   { bar: 1, words: ['MADE', 'FOR', 'TEAMS'], accent: 2, size: 168 },
-  { bar: 2, words: ['NOTHING', 'TO', 'INSTALL'], size: 126 },
+  // "nothing to install" was the wrong claim for a self-hosted tool you clone
+  // and run yourself. This one is both truer and the better reason to care.
+  { bar: 2, words: ['OPEN', 'SOURCE'], accent: 0, size: 168 },
 ];
 
 const Word: React.FC<{

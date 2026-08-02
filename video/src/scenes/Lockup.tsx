@@ -82,7 +82,7 @@ export const Lockup: React.FC = () => {
             transform: `translateY(${(1 - strip) * 12}px)`,
           }}
         >
-          self-hosted · passkey-only · bring your own key
+          open source · self-hosted · bring your own key
         </div>
 
         <div

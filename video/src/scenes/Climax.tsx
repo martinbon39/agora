@@ -98,8 +98,18 @@ const Cellular: React.FC<{ cell: Cell; frame: number }> = ({ cell, frame }) => {
   );
 };
 
-const Wide: React.FC<{ frame: number; push?: number }> = ({ frame, push = 0 }) => (
-  <AbsoluteFill>
+// The blur has to live on this AbsoluteFill and not on a <div> wrapped around
+// it. A `filter` makes an element the containing block for its absolutely
+// positioned descendants; wrapping this in a plain div gave the grid a
+// zero-height containing block, which moved its transform-origin from the
+// centre of the frame to the top and made the whole layout slide down the
+// moment a word faded in.
+const Wide: React.FC<{ frame: number; push?: number; blur?: number }> = ({
+  frame,
+  push = 0,
+  blur = 0,
+}) => (
+  <AbsoluteFill style={blur > 0.3 ? { filter: `blur(${blur}px)` } : undefined}>
     <CanvasBackground opacity={0.8} offsetX={frame * 0.5} />
     <div
       style={{
@@ -125,11 +135,12 @@ const Wide: React.FC<{ frame: number; push?: number }> = ({ frame, push = 0 }) =
   </AbsoluteFill>
 );
 
-// the tail: short fragments cut out of the same material
+// The tail: fragments cut out of the same material, but no longer a sprint.
+// This was 12s and 6s and the ending read as the film running away from you;
+// the score stopped accelerating here too. Still 168 frames in total.
 const TAIL: number[] = [
-  ...Array(4).fill(12),
-  ...Array(4).fill(12),
-  ...Array(12).fill(6),
+  ...Array(4).fill(24),
+  ...Array(6).fill(12),
 ];
 const TAIL_CUTS = TAIL.reduce<{ at: number; dur: number }[]>((acc, dur) => {
   const at = acc.length ? acc[acc.length - 1].at + acc[acc.length - 1].dur : FRAGMENTS;
@@ -178,11 +189,13 @@ export const Climax: React.FC = () => {
     const scrim = ramp(0.25, 1, 1, 0.25);
     return (
       <Stage>
-        {/* the room defocuses behind the word — otherwise 190px type sits on
+        {/* the room defocuses behind the word, otherwise 190px type sits on
             top of running terminal text and neither of them is readable */}
-        <div style={{ filter: defocus > 0.3 ? `blur(${defocus}px)` : undefined }}>
-          <Wide frame={frame} push={interpolate(frame, [0, FRAGMENTS], [0, 0.07])} />
-        </div>
+        <Wide
+          frame={frame}
+          push={interpolate(frame, [0, FRAGMENTS], [0, 0.07])}
+          blur={defocus}
+        />
         <AbsoluteFill
           style={{
             pointerEvents: 'none',

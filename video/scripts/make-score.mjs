@@ -460,30 +460,36 @@ for (let bar = 0; bar < TOTAL_BARS; bar++) {
     continue;
   }
 
-  // --- climax: double-time, everything on
+  // --- climax: bigger, NOT faster
+  //
+  // This used to go double-time: kick on the off-beat, hats in 32nds, the bass
+  // retriggering twice a bar. It read as the track running away at the end
+  // rather than arriving. Same tempo and same subdivision as the body now; the
+  // size comes from level and from more of the harmony being present at once.
   if (isClimax) {
     const gate = (t) => t < SILENCE2;
     for (let b = 0; b < 4; b++) {
       const t = b0 + Math.round(b * SPB);
       if (!gate(t)) continue;
       kick(t, 1.0);
-      kick(t + Math.round(SPB * 0.5), 0.45);
-      subBass(t, SPB * 0.45, ch.root, 1.0);
-      subBass(t + Math.round(SPB * 0.5), SPB * 0.4, ch.root, 0.8);
-      if (b === 1 || b === 3) clap(t, 0.92);
-      for (let s = 0; s < 8; s++) {
-        const ts = b0 + Math.round((b + s * 0.125) * SPB);
+      subBass(t, SPB * 0.92, ch.root, 1.05);
+      if (b === 1 || b === 3) clap(t, 0.95);
+      for (let s = 0; s < 4; s++) {
+        const ts = b0 + Math.round((b + s * 0.25) * SPB);
         if (!gate(ts)) continue;
-        hat(ts, s % 4 === 2 ? 0.62 : 0.32, s % 4 === 2);
+        hat(ts, s === 2 ? 0.65 : 0.42, s === 2);
       }
     }
     for (let s = 0; s < 16; s++) {
       const ts = b0 + Math.round(s * SPB * 0.25);
       if (!gate(ts)) continue;
-      const m = ch.tones[s % 3] + (s % 4 >= 2 ? 12 : 0);
-      stab(ts, SPB * 0.22, [m], 0.38, 4000, 1600);
+      const m = ch.tones[s % 3] + (s % 8 >= 4 ? 12 : 0);
+      stab(ts, SPB * 0.22, [m], 0.42, 3600, 1500);
     }
-    pad(b0, SPBAR, ch.tones.map((t) => t - 12), 0.45);
+    // the chord voiced across two octaves is what makes this section feel like
+    // the top of the film without a single extra note per bar
+    pad(b0, SPBAR, ch.tones.map((t) => t - 12), 0.6);
+    pad(b0, SPBAR, ch.tones, 0.34);
     if (bar === MARKS.lockup - 2) riser(b0, SILENCE2 - b0, 0.8);
     if (bar === MARKS.lockup - 1) {
       reverseSwell(SILENCE2 - Math.round(SPB * 0.15), SPB * 1.15, 0.32);
