@@ -178,6 +178,25 @@ Read [SECURITY.md](SECURITY.md) before exposing it. agora gives a browser a
 shell on your server; the login is the only thing between the internet and your
 machine.
 
+## Credits
+
+The idea that **a link between two nodes is a permission, not a message channel**
+comes from [nodeterm](https://github.com/eneskirca/nodeterm) by Enes Kirca. In
+nodeterm, drawing an edge between two agent nodes means those two may read each
+other; nothing is pushed, and a reader pulls what it wants when it wants it.
+agora's canvas edges work the same way and `agora peek` answers only for sessions
+a human has joined with a link.
+
+The implementation here is agora's own. Nothing was copied: nodeterm is licensed
+under [BUSL-1.1](https://github.com/eneskirca/nodeterm/blob/main/LICENSE), which
+is source-available rather than open source and would not be compatible with this
+project's MIT licence. What was taken is the design, which is the part worth
+crediting anyway.
+
+The two projects are not the same thing. nodeterm is a local canvas of agent
+nodes; agora runs the sessions on a server you own and puts a browser in front of
+them, so they outlive the machine you started them from and other people can join.
+
 ## Configuration
 
 Everything is optional — agora boots with no configuration at all and serves
