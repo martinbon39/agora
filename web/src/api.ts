@@ -87,6 +87,9 @@ export interface Invite {
   revoked_at: number | null;
   /** Project the invite is scoped to; null = full access. */
   project: string | null;
+  /** Whether a sign-in link exists. The link itself is never listed — only its
+   *  hash is stored, so it is readable exactly once, when it is minted. */
+  hasLink: boolean;
 }
 
 /** A connected human on the same project (from `presence` WS snapshots). */
@@ -160,7 +163,12 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, project: project ?? null }),
-    }).then((r) => json<{ ok: true; invites: Invite[] }>(r)),
+    }).then((r) => json<{ ok: true; invites: Invite[]; link: string }>(r)),
+  /** Rotate an invite's sign-in link; the previous one stops working. */
+  newInviteLink: (email: string) =>
+    fetch(`/api/invites/${encodeURIComponent(email)}/link`, { method: "POST" }).then((r) =>
+      json<{ ok: true; invites: Invite[]; link: string }>(r)
+    ),
   revokeInvite: (email: string) =>
     fetch(`/api/invites/${encodeURIComponent(email)}`, { method: "DELETE" }).then((r) =>
       json<{ ok: true; invites: Invite[] }>(r)

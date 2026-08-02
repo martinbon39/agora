@@ -158,6 +158,9 @@ export function initAuthDb(database: Database.Database) {
     `ALTER TABLE auth_sessions ADD COLUMN name TEXT`,
     `ALTER TABLE auth_sessions ADD COLUMN role TEXT`,
     `ALTER TABLE invites ADD COLUMN project TEXT`,
+    // sha256 of the invite link's token. Invites predating links have NULL and
+    // keep working through Google — the owner mints a link when they want one.
+    `ALTER TABLE invites ADD COLUMN token_hash TEXT`,
   ]) {
     try {
       db.exec(ddl);
@@ -170,15 +173,26 @@ export function initAuthDb(database: Database.Database) {
 /** Guest allowlist. Revoking keeps the row (audit + easy re-invite) but kills
  *  every session of that email; live sockets are closed by the route. */
 export const invites = {
-  list(): { email: string; created_at: number; revoked_at: number | null; project: string | null }[] {
-    return db
-      .prepare(`SELECT email, created_at, revoked_at, project FROM invites ORDER BY created_at DESC`)
-      .all() as {
-      email: string;
-      created_at: number;
-      revoked_at: number | null;
-      project: string | null;
-    }[];
+  list(): {
+    email: string;
+    created_at: number;
+    revoked_at: number | null;
+    project: string | null;
+    hasLink: boolean;
+  }[] {
+    return (
+      db
+        .prepare(
+          `SELECT email, created_at, revoked_at, project, token_hash FROM invites ORDER BY created_at DESC`
+        )
+        .all() as {
+        email: string;
+        created_at: number;
+        revoked_at: number | null;
+        project: string | null;
+        token_hash: string | null;
+      }[]
+    ).map(({ token_hash, ...rest }) => ({ ...rest, hasLink: !!token_hash }));
   },
   get(email: string): { revoked_at: number | null; project: string | null } | undefined {
     return db.prepare(`SELECT revoked_at, project FROM invites WHERE email = ?`).get(email.toLowerCase()) as
@@ -197,8 +211,40 @@ export const invites = {
   },
   revoke(email: string) {
     const e = email.toLowerCase();
-    db.prepare(`UPDATE invites SET revoked_at = ? WHERE email = ?`).run(Date.now(), e);
+    // Drop the token with the same statement that revokes. A link is a bearer
+    // credential: leaving a usable one behind a revoked invite is the whole
+    // risk of having links at all, and a second UPDATE is a second thing to
+    // forget.
+    db.prepare(`UPDATE invites SET revoked_at = ?, token_hash = NULL WHERE email = ?`).run(
+      Date.now(),
+      e
+    );
     db.prepare(`DELETE FROM auth_sessions WHERE email = ?`).run(e);
+  },
+
+  /**
+   * Mint (or replace) this invite's link token and return it in the clear —
+   * the only time it is ever readable. Only the hash is stored, so a leaked
+   * database does not hand out working invitations, and re-minting is how the
+   * owner rotates a link they sent to the wrong place.
+   */
+  mintToken(email: string): string {
+    const token = crypto.randomBytes(24).toString("base64url");
+    const changed = db
+      .prepare(`UPDATE invites SET token_hash = ? WHERE email = ? AND revoked_at IS NULL`)
+      .run(sha256(token), email.toLowerCase()).changes;
+    if (!changed) throw new Error("no active invite for that address");
+    return token;
+  },
+
+  /** The live invite a link token belongs to, if it is still good. */
+  byToken(token: string): { email: string; project: string | null } | undefined {
+    if (!token) return undefined;
+    return db
+      .prepare(
+        `SELECT email, project FROM invites WHERE token_hash = ? AND revoked_at IS NULL`
+      )
+      .get(sha256(token)) as { email: string; project: string | null } | undefined;
   },
 }
 
@@ -489,6 +535,32 @@ export async function authRoutes(app: FastifyInstance) {
     } catch (err) {
       return reply.code(403).send({ error: String(err) });
     }
+  });
+
+  /**
+   * Redeem an invite link.
+   *
+   * Before this, the only way a second human could get in was Google OAuth, so
+   * a fresh clone with no OAuth client could not invite anybody at all — the
+   * invite list was an allowlist waiting for a sign-in method that did not
+   * exist yet. A link needs nothing configured.
+   *
+   * The link is a bearer credential and is treated as one: only its hash is
+   * stored, revoking destroys it, and re-minting rotates it. It stays usable
+   * until then rather than burning on first use, because the person you invited
+   * opens it on their laptop and then on their phone, and a one-shot link makes
+   * that a support request. Sharing the link shares the access — which is the
+   * same bargain as any "anyone with the link" URL, and is what the UI says.
+   */
+  app.get<{ Params: { token: string } }>("/api/auth/invite/:token", async (req, reply) => {
+    const invite = invites.byToken(req.params.token ?? "");
+    if (!invite) return reply.redirect("/#denied");
+    issueSession(reply, {
+      email: invite.email,
+      name: invite.email.split("@")[0] || "guest",
+      role: "guest",
+    });
+    reply.redirect("/");
   });
 
   app.post("/api/auth/logout", async (req, reply) => {
