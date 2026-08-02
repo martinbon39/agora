@@ -54,10 +54,10 @@ lost when the page dies.
 - **Agent status at a glance.** Claude Code hooks report each session as working,
   idle, or waiting for approval, so you can see which agent is stuck on a
   permission prompt without opening it.
-- **Multiplayer.** Invite someone with their Google account and scope them to a
-  single project. Live cursors, presence badges on the terminal someone is
-  watching, signed sticky notes. Re-scoping and revoking apply instantly to open
-  sessions.
+- **Multiplayer.** Invite someone and send them the link it gives you — nothing
+  for them to install or sign up for — scoped to a single project. Live cursors,
+  presence badges on the terminal someone is watching, signed sticky notes.
+  Re-scoping and revoking apply instantly to open sessions.
 - **Agents that talk to each other.** A shared per-project chat feed: agents
   announce what they're touching, ask each other questions, and mention a
   session by name to deliver a message straight into its terminal.
@@ -89,9 +89,18 @@ git clone https://github.com/martinbon39/agora.git
 cd agora
 npm install
 
+export AGORA_ORIGIN=http://localhost:5173   # see below — do this before both
 npm run dev:server    # API + WebSockets on :4570
 npm run dev:web       # UI on :5173, proxying to the server
 ```
+
+In dev the UI is served by Vite on `:5173` and the API by the server on `:4570`,
+so agora has to be told which of the two the browser is actually on.
+`AGORA_ORIGIN` is that answer, and both things that need it break silently
+without it: passkeys are bound to the origin of the page that created them, so
+registration is rejected, and the enrolment link below is printed with the
+server's port, where no UI is listening. In production one process serves both
+and the default is right.
 
 Then create your account. There is no signup page and no default password — the
 first passkey can only be minted from the server's filesystem:
@@ -101,7 +110,9 @@ npm run build -w server
 node server/dist/cli.js enroll     # prints a one-shot link, valid 15 minutes
 ```
 
-Open the link, register a passkey, and you're the owner.
+Open the link, register a passkey, and you're the owner. Invite anyone else from
+the multiplayer panel in the top bar: it hands you a link that signs them in,
+scoped to one canvas, with nothing else to configure.
 
 ## Deploying it for real
 
@@ -154,7 +165,7 @@ Full annotated list in [`.env.example`](.env.example).
 | `AGORA_EXTRA_ORIGINS` | — | Additional origins, comma-separated. For domain migrations. |
 | `AGORA_ALLOWED_EMAIL` | — | Google address that gets owner rights. |
 | `AGORA_OWNER_NAME` | from the email | Display name on cursors and messages. |
-| `AGORA_GOOGLE_CLIENT_ID` / `_SECRET` | — | Enables Google sign-in and guest invites. |
+| `AGORA_GOOGLE_CLIENT_ID` / `_SECRET` | — | Enables Google sign-in. Invites work without it, by link. |
 | `GROQ_API_KEY` | — | Enables dictation. Also readable from `<data-dir>/groq.key`. |
 
 The hook secret, PC-bridge token and web-push VAPID keys are generated on first
@@ -167,9 +178,16 @@ are only created from a one-shot, 15-minute token printed by `agoractl enroll`,
 which writes directly to SQLite and is therefore only reachable by someone with
 shell access to the server. No HTTP route can bootstrap an owner.
 
+**Invite links** are how a second person gets in, and they need nothing
+configured. Inviting an address mints a link that signs that person in as a
+guest; it is shown once, because only its hash is stored. Anyone holding it gets
+in, so send it the way you would send a password. Rotating replaces it, and
+revoking destroys it.
+
 **Google sign-in** is optional and is strictly an allowlist. `AGORA_ALLOWED_EMAIL`
 becomes the owner, addresses you invite become guests, and everyone else is
-refused. It's what makes invites possible, since a guest has no shell on your box.
+refused. Configure it and the same invites also work by Google account, which
+is worth having when you would rather not pass links around at all.
 
 **Guests** are scoped to one project (or, explicitly, the whole cockpit). They
 collaborate on that canvas and its terminals but can't administer anything, and
@@ -233,19 +251,14 @@ Correctness is pinned by **gates**: small scripts that replay a bug that
 actually happened, against the real routes.
 
 ```sh
-npm test    # gate-canvas + gate-chat + gate-scope, hermetic, no server needed
+npm test    # every headless gate; needs tmux, and bwrap for full coverage
 ```
 
-These run in CI on every push. Three more gates need a live server or a real
-browser and are run by hand; see [CONTRIBUTING.md](CONTRIBUTING.md).
+These run in CI on every push. Three more need a real browser or a dev server
+and are run by hand. What each gate pins is listed in
+[CONTRIBUTING.md](CONTRIBUTING.md), and fixing a bug means adding a case to one.
 
 ## FAQ
-
-**Why does everything say `agora` under the hood?**
-That was the project's name until July 2026. The tmux socket, the data
-directory, the SQLite filename and the session cookie still use it on purpose:
-renaming them would orphan every live session and log everyone out. Environment
-variables accept both prefixes. It's compatibility debt, deliberately kept.
 
 **Why tmux instead of managing ptys directly?**
 Because then the agent's life would depend on the agora process staying up. With

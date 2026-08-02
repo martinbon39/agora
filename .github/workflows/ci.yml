@@ -16,8 +16,11 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      # sessions are tmux sessions; the hermetic gates don't spawn one, but the
-      # server imports the module that shells out to it
+      # Sessions are tmux sessions, and gate-socket / gate-ws / gate-rooms /
+      # gate-sandbox start real ones. bwrap is deliberately NOT installed:
+      # gate-sandbox prints SKIP without it, and user namespaces on a hosted
+      # runner are not the environment its assertions are about. Run it on a
+      # real box before touching the sandbox.
       - name: Install tmux
         run: sudo apt-get update && sudo apt-get install -y tmux
 
@@ -30,8 +33,9 @@ jobs:
       - name: Build
         run: npm run build
 
-      # gate-canvas / gate-chat / gate-scope are hermetic — fastify.inject
-      # against the real routes, in a throwaway AGORA_DATA_DIR
+      # Every headless gate, each in a throwaway AGORA_DATA_DIR. Most are
+      # fastify.inject against the real routes; gate-socket and gate-ws spawn
+      # the real server, and gate-ws spends ~50s waiting out a heartbeat.
       - name: Gates
         run: npm test
 

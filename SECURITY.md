@@ -62,6 +62,16 @@ local instance is easy and gives you a much better repro.
 - **Google sign-in is an allowlist**, never open registration:
   `AGORA_ALLOWED_EMAIL` becomes owner, addresses on the invite list become
   guests, everyone else is turned away.
+- **Invite links are bearer credentials, and are treated as such.** An invite
+  mints a link that signs its holder in as that guest, so that whoever you
+  invite can arrive on an install with no OAuth configured. Only the SHA-256 of
+  the token is stored, so it is readable exactly once and a leaked database
+  hands out no invitations; revoking clears the token in the same statement
+  that sets `revoked_at`; and re-minting invalidates the previous link. A link
+  redeems into a guest session and never an owner one. It does not expire on
+  first use — the person you invited will open it on a second device — so
+  anyone it is forwarded to gets the same access, exactly like any
+  "anyone with the link" URL.
 - **Guest scope is read live** from the invite on every request, so re-scoping
   or revoking applies to sessions already open rather than at next login.
   Revoking also deletes the sessions and closes the live sockets.
@@ -78,7 +88,9 @@ local instance is easy and gives you a much better repro.
 - **Rate limiting** applies to the authentication endpoints.
 
 `deploy/gate-scope.mjs` pins the guest-scope guarantees above against the real
-routes; please add a case to it with any fix that touches them.
+routes, `deploy/gate-invite.mjs` pins what a link may and may not redeem into,
+and `deploy/gate-ws.mjs` pins that revocation reaches sockets that are already
+open. Please add a case to whichever one your fix touches.
 
 ## Tenancy, and where it stops
 
@@ -145,7 +157,9 @@ currently no value that makes it genuinely sandboxed.
 - Run agora as a dedicated, unprivileged user — never root. `deploy/provision.sh`
   creates one, and `agora.service` sets `NoNewPrivileges=true`.
 - Only invite guests you would trust in the room. Scope every invite to a single
-  project unless you truly mean "the whole cockpit".
+  project unless you truly mean "the whole cockpit". Send invite links over
+  something you would send a password over, and rotate one you have misdirected
+  rather than hoping.
 - `AGORA_DATA_DIR` holds session logs and your database. Back it up, and treat
   it as sensitive: session logs contain whatever scrolled through your
   terminals.
