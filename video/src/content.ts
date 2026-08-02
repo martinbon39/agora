@@ -107,6 +107,9 @@ export const PEERS = [
   { name: 'martin', color: '#7dd3fc' },
   { name: 'lea', color: '#fca5a5' },
   { name: 'sam', color: '#86efac' },
+  { name: 'yuki', color: '#fcd34d' },
+  { name: 'omar', color: '#c4b5fd' },
+  { name: 'nina', color: '#f9a8d4' },
 ];
 
 // ---------------------------------------------------------------------------

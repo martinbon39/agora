@@ -8,7 +8,7 @@ import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
 import { c, AGENTS } from '../brand/tokens';
 import { BAR, BEAT } from '../lib/beats';
-import { sp, springTo } from '../lib/motion';
+import { sp, rise, springTo } from '../lib/motion';
 import { Caption, SectionLabel } from '../lib/Caption';
 import { Stage } from '../lib/Stage';
 import { CanvasBackground } from '../ui/CanvasBackground';
@@ -236,7 +236,9 @@ export const ActCanvas: React.FC = () => {
           }}
         >
           {NODES.map((n) => {
-            const pop = sp(frame, n.at, n.at === 0 ? 'glide' : 'punch');
+            // nodes arrive on the app's own curve, not a spring: the bounce belonged to
+            // the type and looked cheap on a window
+            const pop = rise(frame, n.at, 22);
             if (frame < n.at) return null;
             return (
               <div
@@ -268,7 +270,7 @@ export const ActCanvas: React.FC = () => {
         }}
       />
 
-      <SectionLabel title="An infinite canvas you can arrange" from={BEAT} />
+      <SectionLabel title="One canvas per project." then="Arrange it how you think." from={BEAT} />
 
       {frame >= DRAG_FROM - BEAT && (
         <Cursor

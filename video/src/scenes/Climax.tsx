@@ -8,7 +8,7 @@ import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
 import { c, font, AGENTS } from '../brand/tokens';
 import { BAR, BEAT } from '../lib/beats';
-import { rand, sp } from '../lib/motion';
+import { rand, rise, sp } from '../lib/motion';
 import { Stage } from '../lib/Stage';
 import { CanvasBackground } from '../ui/CanvasBackground';
 import { Session } from '../lib/Session';
@@ -49,7 +49,7 @@ const WORDS = [
 ];
 
 const Cellular: React.FC<{ cell: Cell; frame: number }> = ({ cell, frame }) => {
-  const pop = sp(frame, Math.floor(cell.i / 2) * 6, 'punch');
+  const pop = rise(frame, Math.floor(cell.i / 2) * 6, 20);
   const style: React.CSSProperties = {
     position: 'absolute',
     left: cell.x,

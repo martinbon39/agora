@@ -50,7 +50,7 @@ export const ActAgentTalk: React.FC = () => {
     <Stage>
       <CanvasBackground opacity={0.75} offsetX={frame * 0.3} offsetY={-frame * 0.12} />
 
-      <SectionLabel title="Agents that talk to each other" y={78} />
+      <SectionLabel title="Agents that talk" then="to each other." y={78} />
 
       {/* hermes */}
       <div

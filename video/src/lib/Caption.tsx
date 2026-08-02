@@ -14,29 +14,47 @@ import { rise, sp } from './motion';
  */
 export const SectionLabel: React.FC<{
   title: string;
+  /** lands one beat after the first line, the way the laptop act does it */
+  then?: string;
   from?: number;
+  /** clear the title once the scene needs the space back */
+  until?: number;
+  gap?: number;
   x?: number;
   y?: number;
   size?: number;
-}> = ({ title, from = 0, x = 120, y = 110, size = 66 }) => {
+}> = ({ title, then, from = 0, until, gap = 24, x = 120, y = 110, size = 66 }) => {
   const frame = useCurrentFrame();
-  const b = rise(frame, from + 6, 24);
+  const out = until
+    ? interpolate(frame, [until, until + 16], [1, 0], {
+        extrapolateLeft: 'clamp',
+        extrapolateRight: 'clamp',
+      })
+    : 1;
+  const a = rise(frame, from + 6, 24);
+  const b = rise(frame, from + 6 + gap, 24);
+  const line = (text: string, t: number, dim: boolean): React.ReactNode => (
+    <div
+      style={{
+        fontSize: size,
+        fontWeight: 700,
+        letterSpacing: -1.6,
+        lineHeight: 1.04,
+        color: dim ? c.muted : c.foreground,
+        opacity: t,
+        transform: `translateY(${(1 - t) * 14}px)`,
+        maxWidth: 1180,
+      }}
+    >
+      {text}
+    </div>
+  );
+  if (out <= 0) return null;
   return (
-    <div style={{ position: 'absolute', left: x, top: y }}>
-      <div
-        style={{
-          fontSize: size,
-          fontWeight: 700,
-          letterSpacing: -1.6,
-          lineHeight: 1.02,
-          color: c.foreground,
-          opacity: b,
-          transform: `translateY(${(1 - b) * 14}px)`,
-          maxWidth: 1180,
-        }}
-      >
-        {title}
-      </div>
+    <div style={{ position: 'absolute', left: x, top: y, opacity: out, zIndex: 50 }}>
+      {/* once the second line is up, the first steps back so the eye moves on */}
+      {line(title, a, Boolean(then) && b > 0.35)}
+      {then ? line(then, b, false) : null}
     </div>
   );
 };

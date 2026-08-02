@@ -42,6 +42,20 @@ const CANVAS_ACT = BAR * 3; // 288, somebody puts something on the canvas
 const TAKEOVER = BAR * 5; // 480, and then takes a keyboard that is not theirs
 const SECOND = BAR * 7; // 672, and a second person does the same, elsewhere
 
+// The camera. This act is the heart of the product, so the frame is not allowed
+// to sit still and watch: it goes where the collaboration goes. Each keyframe is
+// a world point to centre on and a zoom, and the move between two of them is a
+// glide, so the camera drifts rather than snapping.
+type Shot = { at: number; x: number; y: number; s: number };
+const CAMERA: Shot[] = [
+  { at: 0, x: 960, y: 540, s: 1 },
+  { at: BAR, x: 960, y: 560, s: 0.94 }, // the room arrives, take it all in
+  { at: BAR * 3, x: 1430, y: 690, s: 1.12 }, // somebody puts a note on the canvas
+  { at: BAR * 5, x: 1450, y: 420, s: 1.18 }, // martin takes athena's keyboard
+  { at: BAR * 7, x: 400, y: 720, s: 1.18 }, // lea takes hypnos'
+  { at: BAR * 8 + BEAT * 2, x: 960, y: 560, s: 0.86 }, // and back out on everyone
+];
+
 type Leg = { at: number; x: number; y: number };
 const ARRIVALS: {
   peer: (typeof PEERS)[number];
@@ -78,6 +92,16 @@ const ARRIVALS: {
   },
 ];
 
+/** Everyone who is in the room but not the subject of a beat. */
+const EXTRAS = PEERS.slice(3).map((peer, i) => ({
+  peer,
+  at: BAR + BEAT * (i + 1),
+  path: (t: number) => ({
+    x: 420 + i * 520 + Math.sin((t + i * 90) / 47) * 210,
+    y: 380 + Math.cos((t + i * 70) / 39) * 230,
+  }),
+}));
+
 export const ActMultiplayer: React.FC = () => {
   const frame = useCurrentFrame();
 
@@ -108,13 +132,27 @@ export const ActMultiplayer: React.FC = () => {
   // brings into being, so it scales up from the button's own position.
   const roomIn = sp(frame, HUMANS - BEAT, 'snappy');
 
+  // walk the camera keyframes the same way the cursors walk their legs
+  let cam = { x: CAMERA[0].x, y: CAMERA[0].y, s: CAMERA[0].s };
+  let prevShot = CAMERA[0];
+  for (const shot of CAMERA.slice(1)) {
+    if (frame < shot.at) break;
+    const m = sp(frame, shot.at, 'glide');
+    cam = {
+      x: cam.x + (shot.x - prevShot.x) * m,
+      y: cam.y + (shot.y - prevShot.y) * m,
+      s: cam.s + (shot.s - prevShot.s) * m,
+    };
+    prevShot = shot;
+  }
+
   const viewer = (i: number) => ({ name: PEERS[i].name, color: PEERS[i].color });
 
   return (
     <Stage>
       <CanvasBackground opacity={0.75} offsetX={frame * 0.3} offsetY={-frame * 0.1} />
 
-      <SectionLabel title="Invite anyone into the room" y={78} />
+      <SectionLabel title="Invite anyone." then="Collaborate live." until={BAR * 2} y={78} />
 
       {/* the invite button, pressed on the beat before the room fills */}
       {frame < HUMANS + BEAT && (
@@ -190,7 +228,10 @@ export const ActMultiplayer: React.FC = () => {
           position: 'absolute',
           inset: 0,
           opacity: roomIn,
-          transform: `scale(${interpolate(roomIn, [0, 1], [0.965, 1])})`,
+          transform: `translate(${960 - cam.x * cam.s}px, ${540 - cam.y * cam.s}px) scale(${
+            cam.s * interpolate(roomIn, [0, 1], [0.965, 1])
+          })`,
+          transformOrigin: '0 0',
         }}
       >
       {/* hermes */}
@@ -225,7 +266,7 @@ export const ActMultiplayer: React.FC = () => {
           position: 'absolute',
           left: 1110,
           top: 244,
-          transform: `scale(${1 + takeoverPunch * 0.02})`,
+          transform: 'none',
         }}
       >
         <TerminalNode
@@ -287,30 +328,6 @@ export const ActMultiplayer: React.FC = () => {
         <ChatNode width={560} height={404} messages={BOARD} visibleCount={BOARD.length} />
       </div>
 
-      </div>
-
-      {/* a human putting something ON the canvas, not just reading it */}
-      {frame >= CANVAS_ACT && (
-        <div
-          style={{
-            position: 'absolute',
-            left: noteX,
-            top: noteY,
-            transform: `rotate(${interpolate(noteIn, [0, 1], [-7, -2])}deg)`,
-            opacity: interpolate(noteIn, [0, 0.25], [0, 1], { extrapolateRight: 'clamp' }),
-            zIndex: 6,
-          }}
-        >
-          <StickyNode
-            width={250}
-            height={210}
-            color="lime"
-            text="judging at 19:00. freeze main at 18:30."
-            author="sam"
-          />
-        </div>
-      )}
-
       {ARRIVALS.map(({ peer, at, from, legs }) => {
         if (frame < at) return null;
         const t = frame - at;
@@ -336,6 +353,45 @@ export const ActMultiplayer: React.FC = () => {
           />
         );
       })}
+      {EXTRAS.map(({ peer, at, path }) => {
+        if (frame < at) return null;
+        const p = path(frame - at);
+        return (
+          <Cursor
+            key={peer.name}
+            x={p.x}
+            y={p.y}
+            name={peer.name}
+            color={peer.color}
+            opacity={interpolate(frame - at, [0, 10], [0, 0.85], { extrapolateRight: 'clamp' })}
+          />
+        );
+      })}
+
+      </div>
+
+      {/* a human putting something ON the canvas, not just reading it */}
+      {frame >= CANVAS_ACT && (
+        <div
+          style={{
+            position: 'absolute',
+            left: noteX,
+            top: noteY,
+            transform: `rotate(${interpolate(noteIn, [0, 1], [-7, -2])}deg)`,
+            opacity: interpolate(noteIn, [0, 0.25], [0, 1], { extrapolateRight: 'clamp' }),
+            zIndex: 6,
+          }}
+        >
+          <StickyNode
+            width={250}
+            height={210}
+            color="lime"
+            text="judging at 19:00. freeze main at 18:30."
+            author="sam"
+          />
+        </div>
+      )}
+
 
       <Caption from={SECOND + 22} x={120} y={900} size={26} width={520}>
         <span style={{ color: c.foreground }}>Three people and three agents</span>, one

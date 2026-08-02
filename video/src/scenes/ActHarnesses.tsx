@@ -130,13 +130,14 @@ export const ActHarnesses: React.FC = () => {
       <CanvasBackground opacity={0.6} offsetY={-frame * 0.15} />
 
       <SectionLabel
-        title="Claude, Codex, Gemini, or a plain shell"
-        size={54}
+        title="Claude. Codex. Gemini."
+        then="Or a plain shell."
+        size={62}
       />
 
       {/* the rail — one engine per beat */}
       {RAIL.map(({ harness, at }, i) => {
-        const s = sp(frame, at, 'punch');
+        const s = rise(frame, at, 20);
         const label = rise(frame, at + 6, 18);
         if (frame < at) return null;
         return (
@@ -177,7 +178,7 @@ export const ActHarnesses: React.FC = () => {
 
       {/* three sessions, same chrome, different engines */}
       {TERMS.map((t) => {
-        const s = sp(frame, t.at, 'punch');
+        const s = rise(frame, t.at, 22);
         if (frame < t.at) return null;
         return (
           <div
