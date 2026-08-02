@@ -4,8 +4,7 @@
 import React from 'react';
 import { interpolate, useCurrentFrame } from 'remotion';
 import { c, font } from '../brand/tokens';
-import { rise, reveal } from './motion';
-import { RevealWords } from './Reveal';
+import { rise, sp } from './motion';
 
 /**
  * A title, and nothing under it. There used to be a kicker line above and a
@@ -20,6 +19,8 @@ export const SectionLabel: React.FC<{
   y?: number;
   size?: number;
 }> = ({ title, from = 0, x = 120, y = 110, size = 66 }) => {
+  const frame = useCurrentFrame();
+  const b = rise(frame, from + 6, 24);
   return (
     <div style={{ position: 'absolute', left: x, top: y }}>
       <div
@@ -29,10 +30,12 @@ export const SectionLabel: React.FC<{
           letterSpacing: -1.6,
           lineHeight: 1.02,
           color: c.foreground,
+          opacity: b,
+          transform: `translateY(${(1 - b) * 14}px)`,
           maxWidth: 1180,
         }}
       >
-        <RevealWords at={from + 18}>{title}</RevealWords>
+        {title}
       </div>
     </div>
   );
@@ -63,7 +66,7 @@ export const Caption: React.FC<{
   align = 'left',
 }) => {
   const frame = useCurrentFrame();
-  const a = reveal(frame, from + 20, 20);
+  const a = rise(frame, from, 22);
   const out = until
     ? interpolate(frame, [until - 10, until], [1, 0], { extrapolateLeft: 'clamp' })
     : 1;
@@ -90,13 +93,25 @@ export const Caption: React.FC<{
   );
 };
 
-/** A word revealed on a beat, for emphasis inside a caption. */
-export const Punch: React.FC<{ children: string; at: number; color?: string }> = ({
+/** A word that punches in on a beat, for emphasis inside a caption. */
+export const Punch: React.FC<{ children: React.ReactNode; at: number; color?: string }> = ({
   children,
   at,
   color = c.foreground,
-}) => (
-  <RevealWords at={at} style={{ color, fontWeight: 600 }}>
-    {children}
-  </RevealWords>
-);
+}) => {
+  const frame = useCurrentFrame();
+  const s = sp(frame, at, 'punch');
+  if (frame < at) return null;
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        color,
+        fontWeight: 600,
+        transform: `scale(${interpolate(s, [0, 1], [1.25, 1])})`,
+      }}
+    >
+      {children}
+    </span>
+  );
+};

@@ -57,20 +57,20 @@ export const Film: React.FC = () => (
     <Sequence from={S.logo.from} durationInFrames={S.logo.dur}>
       <LogoDrop />
     </Sequence>
-    <Sequence from={S.terminals.from} durationInFrames={S.terminals.dur}>
-      <ActLaptop />
-    </Sequence>
     <Sequence from={S.canvas.from} durationInFrames={S.canvas.dur}>
       <ActCanvas />
     </Sequence>
-    <Sequence from={S.harnesses.from} durationInFrames={S.harnesses.dur}>
-      <ActHarnesses />
+    <Sequence from={S.multiplayer.from} durationInFrames={S.multiplayer.dur}>
+      <ActMultiplayer />
     </Sequence>
     <Sequence from={S.agentTalk.from} durationInFrames={S.agentTalk.dur}>
       <ActAgentTalk />
     </Sequence>
-    <Sequence from={S.multiplayer.from} durationInFrames={S.multiplayer.dur}>
-      <ActMultiplayer />
+    <Sequence from={S.harnesses.from} durationInFrames={S.harnesses.dur}>
+      <ActHarnesses />
+    </Sequence>
+    <Sequence from={S.laptop.from} durationInFrames={S.laptop.dur}>
+      <ActLaptop />
     </Sequence>
     <Sequence from={S.climax.from} durationInFrames={S.climax.dur}>
       <Climax />

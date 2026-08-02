@@ -36,20 +36,23 @@ const barAt = (bar, beat = 0) => Math.round(bar * SPBAR + beat * SPB);
 // harness runs in it, and multiplayer — get 27 of the 53 bars between them.
 // The machine gun was cut from 6 bars to 4 and its cut density halved: it was
 // establishing "there is a lot here" at the cost of showing what any of it is.
+// The order the film argues in. The laptop act used to come first, right after
+// the logo, which meant the first thing anyone saw was a machine closing rather
+// than the thing the product does. Value first: the workspace, then the people
+// in it, then the agents talking to each other, then the fact that any engine
+// runs there, and only then "and none of this is on your laptop" as the closing
+// argument before the climax.
 const MARKS = {
   coldOpen: 0,
   build: 2,
   machineGun: 5,
   silence1: 8.75, // last beat of bar 8 — the hole before the drop
   drop: 9,
-  actTerminals: 11,
-  actCanvas: 15,
-  actHarnesses: 20,
-  // Two separate promises, so two separate acts: agents coordinating with each
-  // other, and then humans joining. Stacked into one act they read as one
-  // blurry idea.
-  actAgentTalk: 24,
-  actMultiplayer: 29,
+  actCanvas: 11,
+  actMultiplayer: 16,
+  actAgentTalk: 25,
+  actHarnesses: 30,
+  actLaptop: 34,
   climax: 38,
   silence2: 42.75,
   lockup: 43,
@@ -346,8 +349,8 @@ for (let bar = 0; bar < TOTAL_BARS; bar++) {
   const isColdOpen = inRange(bar, MARKS.coldOpen, MARKS.build);
   const isBuild = inRange(bar, MARKS.build, MARKS.machineGun);
   const isGun = inRange(bar, MARKS.machineGun, MARKS.drop);
-  const isDrop = inRange(bar, MARKS.drop, MARKS.actTerminals);
-  const isBody = inRange(bar, MARKS.actTerminals, MARKS.climax);
+  const isDrop = inRange(bar, MARKS.drop, MARKS.actCanvas);
+  const isBody = inRange(bar, MARKS.actCanvas, MARKS.climax);
   const isClimax = inRange(bar, MARKS.climax, MARKS.lockup);
   const isLockup = bar >= MARKS.lockup;
 
@@ -436,7 +439,7 @@ for (let bar = 0; bar < TOTAL_BARS; bar++) {
 
   // --- body: the three feature acts
   if (isBody) {
-    const intensity = inRange(bar, MARKS.actAgentTalk, MARKS.climax) ? 1 : 0.85;
+    const intensity = inRange(bar, MARKS.actMultiplayer, MARKS.climax) ? 1 : 0.85;
     for (let b = 0; b < 4; b++) {
       const t = b0 + Math.round(b * SPB);
       kick(t, 0.95);

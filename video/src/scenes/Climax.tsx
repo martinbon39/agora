@@ -8,7 +8,7 @@ import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
 import { c, font, AGENTS } from '../brand/tokens';
 import { BAR, BEAT } from '../lib/beats';
-import { rand, reveal, sp } from '../lib/motion';
+import { rand, sp } from '../lib/motion';
 import { Stage } from '../lib/Stage';
 import { CanvasBackground } from '../ui/CanvasBackground';
 import { Session } from '../lib/Session';
@@ -213,20 +213,12 @@ export const Climax: React.FC = () => {
                 fontWeight: 700,
                 letterSpacing: -7,
                 color: c.foreground,
+                transform: `scale(${interpolate(wordSp, [0, 1], [1.3, 1])})`,
                 opacity: wordOpacity,
                 textShadow: '0 30px 90px rgba(0,0,0,0.9)',
-                overflow: 'hidden',
-                paddingBottom: '0.14em',
               }}
             >
-              <span
-                style={{
-                  display: 'inline-block',
-                  transform: `translateY(${(1 - reveal(frame, word.at + 8)) * 110}%)`,
-                }}
-              >
-                {word.text}
-              </span>
+              {word.text}
             </div>
           </AbsoluteFill>
         )}

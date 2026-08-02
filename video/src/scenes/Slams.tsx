@@ -8,7 +8,7 @@ import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
 import { c, font } from '../brand/tokens';
 import { BAR, BEAT } from '../lib/beats';
-import { reveal } from '../lib/motion';
+import { sp } from '../lib/motion';
 import { Stage } from '../lib/Stage';
 
 type Phrase = { bar: number; words: string[]; accent?: number; size: number };
@@ -30,29 +30,23 @@ const Word: React.FC<{
   frame: number;
   accent?: boolean;
 }> = ({ text, at, frame, accent }) => {
-  // The word slides up from behind a mask and stops. It used to arrive at 135%
-  // and spring down to size, which is a physical device applied to something
-  // with no mass; this reads as authored instead of bouncy.
-  const t = reveal(frame, at);
+  const s = sp(frame, at, 'punch');
+  // Comes in oversized and slams down to size. The overshoot IS the impact;
+  // it was swapped for a flat masked reveal and Martin preferred this.
+  const scale = interpolate(s, [0, 1], [1.35, 1]);
+  const blur = interpolate(s, [0, 0.4], [18, 0], { extrapolateRight: 'clamp' });
   return (
     <span
       style={{
         display: 'inline-block',
-        overflow: 'hidden',
-        paddingBottom: '0.14em',
-        marginBottom: '-0.14em',
+        transform: `scale(${scale})`,
+        opacity: frame < at ? 0 : interpolate(s, [0, 0.25], [0, 1], { extrapolateRight: 'clamp' }),
+        filter: blur > 0.4 ? `blur(${blur}px)` : undefined,
+        color: accent ? c.primary : c.foreground,
         marginRight: 28,
       }}
     >
-      <span
-        style={{
-          display: 'inline-block',
-          transform: `translateY(${(1 - t) * 110}%)`,
-          color: accent ? c.primary : c.foreground,
-        }}
-      >
-        {text}
-      </span>
+      {text}
     </span>
   );
 };

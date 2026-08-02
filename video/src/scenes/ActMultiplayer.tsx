@@ -37,7 +37,7 @@ import {
 // this act was the weakest in the film and that the answer was fewer words, not
 // more: the button IS the explanation.
 const INVITE_AT = BEAT * 2; // 48, the press
-const HUMANS = BAR; // 96, and they all arrive together
+const HUMANS = BAR; // 96, the room appears and everyone arrives at once
 const CANVAS_ACT = BAR * 3; // 288, somebody puts something on the canvas
 const TAKEOVER = BAR * 5; // 480, and then takes a keyboard that is not theirs
 const SECOND = BAR * 7; // 672, and a second person does the same, elsewhere
@@ -104,6 +104,10 @@ export const ActMultiplayer: React.FC = () => {
     easing: expoOut,
   });
 
+  // Nothing exists before the button is pressed. The room is what the press
+  // brings into being, so it scales up from the button's own position.
+  const roomIn = sp(frame, HUMANS - BEAT, 'snappy');
+
   const viewer = (i: number) => ({ name: PEERS[i].name, color: PEERS[i].color });
 
   return (
@@ -117,8 +121,8 @@ export const ActMultiplayer: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            left: 810,
-            top: 470,
+            left: 872,
+            top: 476,
             opacity: interpolate(frame, [8, 20, HUMANS, HUMANS + BEAT], [0, 1, 1, 0], {
               extrapolateLeft: 'clamp',
               extrapolateRight: 'clamp',
@@ -135,7 +139,7 @@ export const ActMultiplayer: React.FC = () => {
               borderRadius: 12,
               background: c.primary,
               color: '#ffffff',
-              fontSize: 24,
+              fontSize: 26,
               fontWeight: 600,
               letterSpacing: -0.3,
               // it depresses on the press, the way a button does
@@ -145,7 +149,7 @@ export const ActMultiplayer: React.FC = () => {
                 : '0 10px 30px rgb(0 0 0 / 45%)',
             }}
           >
-            Invite people
+            Invite
           </div>
           {/* the ring that leaves the button when it is pressed */}
           {pressed && (
@@ -181,6 +185,14 @@ export const ActMultiplayer: React.FC = () => {
         />
       )}
 
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          opacity: roomIn,
+          transform: `scale(${interpolate(roomIn, [0, 1], [0.965, 1])})`,
+        }}
+      >
       {/* hermes */}
       <div style={{ position: 'absolute', left: 110, top: 244 }}>
         <TerminalNode
@@ -273,6 +285,8 @@ export const ActMultiplayer: React.FC = () => {
       {/* the board, carried over from the act before */}
       <div style={{ position: 'absolute', left: 712, top: 596, zIndex: 5 }}>
         <ChatNode width={560} height={404} messages={BOARD} visibleCount={BOARD.length} />
+      </div>
+
       </div>
 
       {/* a human putting something ON the canvas, not just reading it */}
