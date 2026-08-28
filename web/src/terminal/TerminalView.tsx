@@ -392,13 +392,107 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     };
     const sendResize = () => send({ t: "r", cols: term.cols, rows: term.rows });
 
-    // --- mobile IME ghost filter -------------------------------------------
-    // Android keyboards (GBoard, voice dictation) drive xterm through IME
-    // composition events, and xterm re-emits the same composed chunk through
-    // several internal paths — typed text arrives 2-4× (xterm.js #3600, still
-    // open in 6.0). A multi-char chunk identical to the previous one, arriving
-    // within GHOST_MS while composition is active/recent, cannot be produced
-    // by a human — drop it. Desktop keyboards never compose: zero effect there.
+    // --- mobile input takeover ---------------------------------------------
+    // On touch devices xterm emits typed text through several concurrent
+    // internal paths (composition finalized by keydown, compositionend's
+    // deferred textarea read, the insertText input handler): GBoard input
+    // arrives 2-4×, sometimes the whole accumulated line again — xterm.js
+    // #3600, still open in 6.0. Filtering the echoes downstream is
+    // whack-a-mole because the copies are not always identical (the deferred
+    // read can pick up the whole tail of the textarea). Take over instead:
+    // composition/input events are stopped (capture phase, on the container,
+    // so this runs before xterm's own textarea listeners) and what is sent
+    // derives from the hidden textarea's VALUE — one source of truth, one
+    // emission path. Physical/special keys (Enter, arrows, Ctrl+…) still
+    // flow through xterm, which cancels their default action so they can
+    // never double into the textarea.
+    let detachTakeover = () => {};
+    if (matchMedia("(pointer: coarse)").matches && term.textarea) {
+      const ta = term.textarea;
+      let prev = ta.value;
+      let composing = false;
+      // xterm rewrites the textarea value outside the input pipeline (clear
+      // on Enter/^C keydown, clear on blur, Linux-selection write): re-read
+      // it once the writer has run, so the next diff starts from reality.
+      const resync = () => setTimeout(() => (prev = ta.value), 0);
+      const diffSend = (inputType?: string) => {
+        const v = ta.value;
+        if (v === prev) return;
+        // The pty cursor sits at the end of what was sent: an edit can only be
+        // replayed as "rub out back to the divergence point, retype the rest".
+        // No common-suffix trimming — reusing a tail would need mid-line
+        // insertion, which \x7f + text cannot express.
+        let head = 0;
+        const max = Math.min(prev.length, v.length);
+        while (head < max && prev[head] === v[head]) head++;
+        const removed = prev.length - head;
+        const inserted = v.slice(head).replace(/\r?\n/g, "\r");
+        prev = v;
+        // GBoard's clipboard chip inserts without a paste event — give it
+        // real paste semantics when the app asked for bracketed paste
+        const bracket =
+          inputType === "insertFromPaste" && inserted && term.modes.bracketedPasteMode;
+        const payload = bracket ? `\x1b[200~${inserted}\x1b[201~` : inserted;
+        if (removed || payload) send({ t: "i", d: "\x7f".repeat(removed) + payload });
+        // a committed Enter ended the line: drop the accumulator like xterm
+        // does on a physical Enter — but never mid-composition (IME state)
+        if (inserted.includes("\r") && !composing) {
+          ta.value = "";
+          prev = "";
+        }
+      };
+      const onInput = (e: Event) => {
+        e.stopPropagation();
+        diffSend((e as InputEvent).inputType);
+      };
+      const onComposition = (e: Event) => {
+        e.stopPropagation();
+        composing = e.type !== "compositionend";
+        if (!composing) diffSend(); // some keyboards only mutate at the end
+      };
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.isComposing || e.keyCode === 229) {
+          // IME placeholder key — the effect arrives as input events
+          e.stopPropagation();
+        } else if (composing) {
+          // mid-composition real keys double what input events already carry
+          e.stopPropagation();
+        } else {
+          resync(); // xterm may clear the textarea (Enter, ^C)
+        }
+      };
+      const onFocusChange = () => {
+        composing = false; // a composition never survives losing focus
+        resync(); // xterm clears the textarea on blur
+      };
+      const onSelect = () => resync(); // Linux-selection write fires select()
+      container.addEventListener("input", onInput, true);
+      container.addEventListener("compositionstart", onComposition, true);
+      container.addEventListener("compositionupdate", onComposition, true);
+      container.addEventListener("compositionend", onComposition, true);
+      container.addEventListener("keydown", onKeyDown, true);
+      container.addEventListener("focusin", onFocusChange, true);
+      container.addEventListener("focusout", onFocusChange, true);
+      container.addEventListener("select", onSelect, true);
+      detachTakeover = () => {
+        container.removeEventListener("input", onInput, true);
+        container.removeEventListener("compositionstart", onComposition, true);
+        container.removeEventListener("compositionupdate", onComposition, true);
+        container.removeEventListener("compositionend", onComposition, true);
+        container.removeEventListener("keydown", onKeyDown, true);
+        container.removeEventListener("focusin", onFocusChange, true);
+        container.removeEventListener("focusout", onFocusChange, true);
+        container.removeEventListener("select", onSelect, true);
+      };
+    }
+
+    // --- desktop IME ghost filter ------------------------------------------
+    // Belt-and-suspenders for FINE-pointer IMEs (desktop CJK, dead keys):
+    // xterm can re-emit a composed chunk through two internal paths. A
+    // multi-char chunk identical to the previous one, arriving within
+    // GHOST_MS while composition is active/recent, cannot be produced by a
+    // human — drop it. On touch devices the takeover above owns the input
+    // path and composition events never reach these listeners.
     const GHOST_MS = 300;
     let lastCompositionT = -Infinity;
     const markComposition = () => (lastCompositionT = performance.now());
@@ -462,6 +556,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
       container.removeEventListener("touchcancel", onTouchEnd);
       observer.disconnect();
       clearTimeout(settleTimer);
+      detachTakeover();
       dataSub.dispose();
       resizeSub.dispose();
       selSub.dispose();

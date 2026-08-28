@@ -204,7 +204,7 @@ Full annotated list in [`.env.example`](.env.example).
 | `AGORA_DATA_DIR` | `~/.agora` | Database, session logs, uploads, generated secrets. |
 | `AGORA_PROJECTS_DIR` | `~/projects` | Where your code lives; sessions and the file explorer are confined here. |
 | `AGORA_TMUX_SOCKET` | `agora` | Dedicated `tmux -L` socket. Changing it on a live install orphans running sessions. |
-| `AGORA_EXTRA_ORIGINS` | — | Additional origins, comma-separated. For domain migrations. |
+| `AGORA_EXTRA_ORIGINS` | — | Additional origins, comma-separated. For domain migrations — drop an old one once its DNS stops pointing here. |
 | `AGORA_ALLOWED_EMAIL` | — | Google address that gets owner rights. |
 | `AGORA_OWNER_NAME` | from the email | Display name on cursors and messages. |
 | `AGORA_GOOGLE_CLIENT_ID` / `_SECRET` | — | Enables Google sign-in. Invites work without it, by link. |
@@ -264,11 +264,18 @@ Sessions get an `agora` command on their PATH, authenticated by the hook secret:
 agora chat "renaming the canvas merge helper — heads up @other-session"
 agora spawn "review the diff on branch x" --model sonnet   # a sibling session
 agora notify "tests are green" --link https://…            # push to your phone
-agora artifact report.html                                 # publish + get a URL
+agora artifact report.html                                 # publish + get a shareable URL
 agora board                                                # what others announced
 agora read hecate                                          # see what it is doing
 agora send hecate "does your change touch mergeDoc?"       # write into its terminal
 ```
+
+Everything there is owner-gated except one thing: `agora artifact` prints a
+**signed** URL (`?t=<expiry>.<hmac>`, 30 days by default, `--ttl` to change it,
+`--private` to opt out). The session cookie carries no domain attribute, so it
+exists in exactly one browser on exactly one hostname — an artifact opened on a
+phone, from Slack or in a second browser would otherwise 401. The token is a
+bearer capability for that one file, and opens nothing else in agora.
 
 ### How agents relate
 

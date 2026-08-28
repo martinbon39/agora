@@ -1,5 +1,14 @@
 import { useMemo } from "react";
-import { BellIcon, EyeIcon, FolderPlusIcon, LogOutIcon, PlusIcon, SearchIcon } from "lucide-react";
+import {
+  BellIcon,
+  EyeIcon,
+  FolderPlusIcon,
+  LayoutGridIcon,
+  LogOutIcon,
+  PlusIcon,
+  SearchIcon,
+  WaypointsIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api, type AgoraNotification, type AuthUser, type PresencePeer, type Project, type Session } from "@/api";
 import { Logo } from "./Logo";
@@ -64,6 +73,8 @@ export function TopBar({
   onDeleteSession,
   wallOpen,
   onToggleWall,
+  mobileCanvas,
+  onToggleMobileView,
   user,
   peers,
 }: {
@@ -83,6 +94,9 @@ export function TopBar({
   onDeleteSession: (id: string) => void;
   wallOpen: boolean;
   onToggleWall: () => void;
+  /** Mobile-only layout switch: canvas ⇄ focus view (full-screen sessions). */
+  mobileCanvas: boolean;
+  onToggleMobileView: () => void;
   user: AuthUser | null;
   peers: PresencePeer[];
 }) {
@@ -228,6 +242,22 @@ export function TopBar({
       )}
 
       <div className="flex shrink-0 items-center gap-0.5">
+        {/* phones carry two layouts — the pannable canvas and a full-screen
+            focus view; this is the only door between them (hidden ≥ md) */}
+        {!locked && (
+          <button
+            type="button"
+            onClick={onToggleMobileView}
+            aria-label={mobileCanvas ? "Switch to focus view" : "Switch to canvas"}
+            className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
+          >
+            {mobileCanvas ? (
+              <LayoutGridIcon className="size-4" />
+            ) : (
+              <WaypointsIcon className="size-4" />
+            )}
+          </button>
+        )}
         {/* who else is in the room right now */}
         {peers.length > 0 && (
           <div className="flex items-center -space-x-1.5 pr-1.5">

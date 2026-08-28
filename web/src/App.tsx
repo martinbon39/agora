@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { PlusIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { api, type AgoraNotification, type PresencePeer, type Project, type Session } from "./api";
 import { serverEvents, tabClientId } from "./events";
@@ -8,6 +9,7 @@ import { useCurrentUser } from "./auth/userContext";
 import { enablePush, pushEnabled, pushSupported, registerServiceWorker } from "./push";
 import { TopBar } from "./components/TopBar";
 import { WallView } from "./components/WallView";
+import { useIsMobile } from "./hooks/useMediaQuery";
 import { NewProjectDialog } from "./components/NewProjectDialog";
 import { CommandPalette } from "./components/CommandPalette";
 import { Home } from "./components/Home";
@@ -55,6 +57,25 @@ export default function App() {
   const [peers, setPeers] = useState<PresencePeer[]>([]);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [wallOpen, setWallOpen] = useState(false);
+  // Mobile carries two layouts: the canvas (same as desktop, pannable) and a
+  // focus view (full-screen terminal over a session wall) — the canvas is
+  // powerful but cramped on a phone, so the focus view is the default and a
+  // TopBar toggle switches. Desktop always gets the canvas.
+  const isMobile = useIsMobile();
+  const [mobileCanvas, setMobileCanvas] = useState(
+    () => localStorage.getItem("agora.mobileCanvas") === "1"
+  );
+  const toggleMobileView = useCallback(() => {
+    setMobileCanvas((v) => {
+      localStorage.setItem("agora.mobileCanvas", v ? "0" : "1");
+      return !v;
+    });
+  }, []);
+  // composer sheet of the mobile focus view ("+" over the session wall)
+  const [mobileCompose, setMobileCompose] = useState(false);
+  const mobileFocus = isMobile && !mobileCanvas;
+  const mobileFocusRef = useRef(mobileFocus);
+  mobileFocusRef.current = mobileFocus;
   const setActiveCanvas = useCallback((projectPath: string) => {
     setActiveCanvasState(projectPath);
     localStorage.setItem("agora.activeCanvas", projectPath);
@@ -249,7 +270,13 @@ export default function App() {
 
   // desktop: land on the session's project canvas, centered on its node.
   // Same canvas → animate to it; other canvas → switch (remount) + deferred focus.
+  // Mobile focus view: no canvas on screen — open the session full screen.
   const openOnCanvas = (sessionId: string, projectPath: string) => {
+    if (mobileFocusRef.current) {
+      setMobileCompose(false);
+      setActiveId(sessionId);
+      return;
+    }
     if (projectPath !== activeCanvas) {
       setActiveCanvas(projectPath);
       setCanvasFocus(sessionId);
@@ -366,6 +393,12 @@ export default function App() {
   // "new session": launch directly, or open the composer (Home on mobile,
   // dialog on the canvas)
   const quickCreate = (harness?: string) => {
+    if (mobileFocusRef.current) {
+      // no canvas mounted — the focus view's composer is the launch door
+      setActiveId(null);
+      setMobileCompose(true);
+      return;
+    }
     canvasRef.current?.newSession(harness ?? "claude");
   };
 
@@ -389,6 +422,8 @@ export default function App() {
           onDeleteSession={removeSession}
           wallOpen={wallOpen}
           onToggleWall={() => setWallOpen((o) => !o)}
+          mobileCanvas={mobileCanvas}
+          onToggleMobileView={toggleMobileView}
           user={user}
           peers={peers}
         />
@@ -403,7 +438,75 @@ export default function App() {
         </AnimatePresence>
 
         <main className="min-h-0 min-w-0 flex-1">
-          {activeCanvas ? (
+          {mobileFocus ? (
+            <AnimatePresence mode="wait">
+              {active ? (
+                <motion.div
+                  key={active.id}
+                  className="h-full"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.12 }}
+                >
+                  <Suspense fallback={null}>
+                    <SessionView
+                      session={active}
+                      onBack={() => setActiveId(null)}
+                      onClose={() => {
+                        setActiveId(null);
+                        refresh();
+                      }}
+                    />
+                  </Suspense>
+                </motion.div>
+              ) : mobileCompose ? (
+                <motion.div
+                  key="compose"
+                  className="relative h-full"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.12 }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setMobileCompose(false)}
+                    aria-label="Back to sessions"
+                    className="absolute left-3 top-3 z-10 flex size-9 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground backdrop-blur-md"
+                  >
+                    <XIcon className="size-4" />
+                  </button>
+                  <Home
+                    projects={projects}
+                    onProjectsChanged={refresh}
+                    onLaunch={({ projectPath, text, model, mode, harness }) =>
+                      createSession({ harness, projectPath, text, model, mode })
+                    }
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="wall"
+                  className="relative h-full"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.12 }}
+                >
+                  <WallView embedded onOpenSession={openSession} onClose={() => {}} />
+                  <button
+                    type="button"
+                    onClick={() => setMobileCompose(true)}
+                    aria-label="New session"
+                    className="absolute bottom-5 right-5 z-10 flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform active:scale-90"
+                  >
+                    <PlusIcon className="size-5" />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          ) : activeCanvas ? (
               <Suspense fallback={null}>
                 <CanvasView
                   key={activeCanvas}

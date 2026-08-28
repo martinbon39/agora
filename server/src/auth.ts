@@ -412,6 +412,69 @@ export function hookSecret(): string {
   return hookSecretCache;
 }
 
+// ---- shareable artifact links --------------------------------------------
+// An artifact is a page an agent made FOR the owner to look at, and he rarely
+// looks at it in the browser that holds his session: it goes to a phone, a
+// Slack webview, a second machine. The session cookie is set without a domain
+// attribute, so it exists on exactly one hostname in exactly one browser —
+// which made every artifact link 401 the moment it left that browser.
+//
+// So a link may carry its own authority: ?t=<expiry>.<hmac(name, expiry)>,
+// signed with the hooks secret. It is a bearer capability deliberately: one
+// file, expiring on its own, opening nothing else in argos — not a session.
+const ARTIFACT_TTL_MS = 30 * 24 * 3600 * 1000;
+// same charset the CLI sanitises names to; no "/", so no traversal survives it
+const ARTIFACT_PATH = /^\/artifacts\/([A-Za-z0-9._-]+)$/;
+
+function artifactSig(name: string, expires: number): string {
+  return crypto
+    .createHmac("sha256", hookSecret())
+    .update(`artifact:${name}:${expires}`)
+    .digest("base64url")
+    .slice(0, 32);
+}
+
+/** The `?t=` value that opens `name` until `expires` (epoch ms). */
+export function artifactToken(name: string, expires = Date.now() + ARTIFACT_TTL_MS): string {
+  return `${expires.toString(36)}.${artifactSig(name, expires)}`;
+}
+
+export function artifactTokenValid(
+  name: string,
+  token: string | undefined,
+  now = Date.now()
+): boolean {
+  if (!token) return false;
+  const [exp, sig] = token.split(".");
+  const expires = Number.parseInt(exp ?? "", 36);
+  if (!Number.isFinite(expires) || expires <= now) return false;
+  const expected = Buffer.from(artifactSig(name, expires));
+  const got = Buffer.from(sig ?? "");
+  return got.length === expected.length && crypto.timingSafeEqual(got, expected);
+}
+
+/** A read of one artifact file, or null for every other request. It is the
+ *  only shape a signed link may authorise, and the only one exempt from the
+ *  cross-site refusal below — fetching a page changes nothing on the server,
+ *  and a top-level navigation from Slack or a mail client is exactly how these
+ *  links get opened. Writes and every other prefix keep the strict rule. */
+export function artifactRead(
+  method: string,
+  rawUrl: string
+): { name: string; token?: string } | null {
+  if (method !== "GET" && method !== "HEAD") return null;
+  const [rawPath, query] = (rawUrl || "").split("?");
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(rawPath);
+  } catch {
+    return null;
+  }
+  const m = ARTIFACT_PATH.exec(decoded);
+  if (!m) return null;
+  return { name: m[1], token: new URLSearchParams(query ?? "").get("t") ?? undefined };
+}
+
 /** The path every prefix test below must run on.
  *
  *  NOT `req.raw.url`: that is the raw request target, while the router
@@ -450,11 +513,15 @@ export function requireAuth(app: FastifyInstance) {
     if (url.startsWith("/api/spectate/")) return;
     if (url.startsWith("/ws/bridge")) return; // token-checked in its own handler
     if (url.startsWith("/api/hooks/") && hookCaller(req)) return;
+    // a signed artifact link stands on its own: it uses no cookie, so none of
+    // the ambient-authority rules below apply to it
+    const artifact = artifactRead(req.method, req.raw.url ?? "");
+    if (artifact && artifactTokenValid(artifact.name, artifact.token)) return;
     // CSRF hardening: content in sandboxed/proxied iframes (opaque origin) and
     // third-party pages report Sec-Fetch-Site: cross-site — they must never
     // reach the API even if the browser attached the session cookie
     const fetchSite = req.headers["sec-fetch-site"];
-    if (fetchSite === "cross-site") {
+    if (fetchSite === "cross-site" && !artifact) {
       reply.code(403).send({ error: "cross-site request refused" });
       return;
     }

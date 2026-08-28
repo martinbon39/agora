@@ -4,14 +4,15 @@
 //       Send the owner a notification: dashboard inbox + web push.
 //       --session defaults to AGORA_SESSION_ID (injected into every session).
 //
-//   agora artifact <file> [--name <name>]
-//       Publish a file to ~/.agora/artifacts/ and print its served URL.
+//   agora artifact <file> [--name <name>] [--ttl <days>] [--private]
+//       Publish a file to ~/.agora/artifacts/ and print a signed, shareable URL.
 //
 // Auth: the hooks secret (~/.agora/hook-secret), same channel as the Claude
 // Code hooks — anything running as the agora user may notify.
 // CommonJS: installed outside the repo (~/.local/bin), no package.json nearby.
 "use strict";
 
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const http = require("node:http");
 const os = require("node:os");
@@ -127,6 +128,8 @@ function parseArgs(argv) {
     else if (a === "--model" || a === "-m") flags.model = argv[++i];
     else if (a === "--harness" || a === "-H") flags.harness = argv[++i];
     else if (a === "--lines") flags.lines = argv[++i];
+    else if (a === "--ttl") flags.ttl = argv[++i];
+    else if (a === "--private") flags.private = true;
     else if (a === "--terminal") flags.terminal = true;
     else if (a === "--full") flags.full = true;
     else positional.push(a);
@@ -183,16 +186,40 @@ async function pc(argv) {
   }
 }
 
+/** Same token as server/src/auth.ts, and deploy/gate-artifacts.mjs pins that
+ *  the two agree: the CLI signs, the server verifies, and a drift between the
+ *  two halves would silently break every link already handed out. */
+function artifactToken(name, expires) {
+  const sig = crypto
+    .createHmac("sha256", secret())
+    .update(`artifact:${name}:${expires}`)
+    .digest("base64url")
+    .slice(0, 32);
+  return `${expires.toString(36)}.${sig}`;
+}
+
 function artifact(argv) {
   const { flags, positional } = parseArgs(argv);
   const [file] = positional;
-  if (!file) fail("usage: agora artifact <file> [--name <name>]");
+  if (!file) fail("usage: agora artifact <file> [--name <name>] [--ttl <days>] [--private]");
   if (!fs.existsSync(file)) fail(`file not found: ${file}`);
-  const name = (flags.name ?? path.basename(file)).replace(/[^A-Za-z0-9._-]/g, "-");
+  let name = (flags.name ?? path.basename(file)).replace(/[^A-Za-z0-9._-]/g, "-");
+  // the extension is what makes a browser RENDER the page instead of saving
+  // it: with no extension the file is served as octet-stream, and the nosniff
+  // header turns the link into a download. A --name without one borrows the
+  // source file's, since the name is a label, not a choice of format.
+  if (!path.extname(name)) name += path.extname(file);
   const dir = path.join(dataDir, "artifacts");
   fs.mkdirSync(dir, { recursive: true });
   fs.copyFileSync(file, path.join(dir, name));
-  console.log(`${origin()}/artifacts/${name}`);
+  const url = `${origin()}/artifacts/${name}`;
+  // signed by default: the owner opens these on a phone or from Slack, where
+  // his session cookie does not exist. --private prints the bare URL, which
+  // only works in a browser already logged into agora.
+  if (flags.private) return console.log(url);
+  const days = Number(flags.ttl ?? 30);
+  if (!Number.isFinite(days) || days <= 0) fail("--ttl takes a positive number of days");
+  console.log(`${url}?t=${artifactToken(name, Date.now() + days * 86400000)}`);
 }
 
 /** The project board. A post here reaches NOBODY's terminal — it is an
@@ -587,7 +614,7 @@ async function main() {
           "  agora plan claim|drop <id>                     take a task, or let it go",
           '  agora plan done <id> ["what to know"]          finish it, leaving a handoff behind',
           '  agora plan block <id> "<why>"                  say it is stuck, and why',
-          "  agora artifact <file> [--name <name>]          publish an artifact, print its URL",
+          "  agora artifact <file> [--name <n>] [--private] publish an artifact, print a shareable URL",
           "  agora pc <ls|get> <path>                       browse/fetch files from the owner's PC",
         ].join("\n")
       );

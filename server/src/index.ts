@@ -157,6 +157,14 @@ async function main() {
     root: artifactsDir,
     prefix: "/artifacts/",
     decorateReply: false,
+    setHeaders(res) {
+      // an artifact is same-origin with the app, so a third-party page that
+      // framed one would hold a document able to call /api with the owner's
+      // cookie. Reading an artifact AS a page is the point; being embedded in
+      // someone else's is not — the distinction Sec-Fetch-Site cannot make,
+      // and the one thing the cross-site exemption in requireAuth gives up.
+      res.setHeader("Content-Security-Policy", "frame-ancestors 'self'");
+    },
   });
 
   // Serve the built web UI when present (single-process deploy).

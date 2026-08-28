@@ -23,9 +23,13 @@ function projectName(path: string) {
 export function WallView({
   onOpenSession,
   onClose,
+  embedded = false,
 }: {
   onOpenSession: (id: string) => void;
   onClose: () => void;
+  /** Mobile focus view renders the wall as its home screen, not as an
+   *  overlay: in-flow, no backdrop, no Escape-to-close. */
+  embedded?: boolean;
 }) {
   const [entries, setEntries] = useState<WallEntry[]>([]);
 
@@ -38,6 +42,12 @@ export function WallView({
         .catch(() => {});
     tick();
     const t = setInterval(tick, 3000);
+    if (embedded) {
+      return () => {
+        cancelled = true;
+        clearInterval(t);
+      };
+    }
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => {
@@ -45,7 +55,7 @@ export function WallView({
       clearInterval(t);
       window.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, [onClose, embedded]);
 
   const byProject = new Map<string, WallEntry[]>();
   for (const e of entries) {
@@ -60,9 +70,13 @@ export function WallView({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.12 }}
-      className="fixed inset-0 top-11 z-30 overflow-y-auto bg-background/95 backdrop-blur-sm"
+      className={
+        embedded
+          ? "h-full overflow-y-auto"
+          : "fixed inset-0 top-11 z-30 overflow-y-auto bg-background/95 backdrop-blur-sm"
+      }
     >
-      <div className="mx-auto max-w-7xl space-y-8 px-6 py-6">
+      <div className="mx-auto max-w-7xl space-y-8 px-4 py-5 sm:px-6 sm:py-6">
         {entries.length === 0 && (
           <p className="pt-24 text-center text-sm text-muted-foreground">
             no live sessions — the watcher is bored
